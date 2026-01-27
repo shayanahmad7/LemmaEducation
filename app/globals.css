@@ -5,13 +5,23 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&display=swap');
 
 @layer base {
+  :root {
+    /* Palette: Deep Evergreen & Mist */
+    --bg-color: #F2F5F4;
+    --text-main: #0F2922;
+    --text-muted: #3F524C;
+    --accent: #16423C;
+    --accent-hover: #0A2621;
+    --input-line: #A3B8B2;
+  }
+
   body {
-    /* Warm, paper-like off-white. */
-    background-color: #F9F9F7;
-    /* Soft charcoal text. */
-    color: #1C1917;
+    background-color: var(--bg-color);
+    color: var(--text-main);
     font-family: 'Inter', sans-serif;
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    position: relative;
   }
 
   h1, h2, h3, .serif {
@@ -20,8 +30,8 @@
 
   /* Custom selection color */
   ::selection {
-    background: #E7E5E4;
-    color: #000;
+    background: #C4DED8;
+    color: #0F2922;
   }
 }
 
@@ -48,14 +58,19 @@
   .minimal-input {
     background: transparent;
     border: none;
-    border-bottom: 1px solid #A8A29E;
+    border-bottom: 1px solid var(--input-line);
     border-radius: 0;
     padding: 10px 0;
     outline: none;
     transition: border-color 0.3s ease;
+    color: var(--text-main);
   }
   
   .minimal-input:focus {
-    border-color: #1C1917;
+    border-color: var(--accent);
+  }
+
+  .minimal-input::placeholder {
+    color: #8CA39D;
   }
 }
