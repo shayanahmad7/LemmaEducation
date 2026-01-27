@@ -93,10 +93,46 @@ export default function Home() {
           <div>
             <h4 className="uppercase tracking-widest text-[10px] font-bold text-[#5C7069] mb-4">The Team</h4>
             <ul className="space-y-1 text-sm text-[#3F524C] font-light">
-              <li>Shayan Ahmad</li>
-              <li>Myra Rafiq</li>
-              <li>Vlera Mehani</li>
-              <li>Daniar Zhylangozov</li>
+              <li>
+                <a 
+                  href="https://www.linkedin.com/in/shayanahmad7/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="hover:text-[#16423C] transition-colors"
+                >
+                  Shayan Ahmad
+                </a>
+              </li>
+              <li>
+                <a 
+                  href="https://www.linkedin.com/in/myrarafiq/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="hover:text-[#16423C] transition-colors"
+                >
+                  Myra Rafiq
+                </a>
+              </li>
+              <li>
+                <a 
+                  href="https://www.linkedin.com/in/vlera-mehani-a11a56178/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="hover:text-[#16423C] transition-colors"
+                >
+                  Vlera Mehani
+                </a>
+              </li>
+              <li>
+                <a 
+                  href="https://www.linkedin.com/in/daniar-zhylangozov/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="hover:text-[#16423C] transition-colors"
+                >
+                  Daniar Zhylangozov
+                </a>
+              </li>
             </ul>
           </div>
 
