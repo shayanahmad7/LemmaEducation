@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&display=swap');
+
+@layer base {
+  body {
+    /* Warm, paper-like off-white. */
+    background-color: #F9F9F7;
+    /* Soft charcoal text. */
+    color: #1C1917;
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, .serif {
+    font-family: 'Newsreader', serif;
+  }
+
+  /* Custom selection color */
+  ::selection {
+    background: #E7E5E4;
+    color: #000;
+  }
+}
+
+@layer utilities {
+  /* Subtle Fade In Animation */
+  .fade-in-up {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.8s ease-out forwards;
+  }
+
+  .delay-100 { animation-delay: 0.1s; }
+  .delay-200 { animation-delay: 0.2s; }
+  .delay-300 { animation-delay: 0.3s; }
+
+  @keyframes fadeInUp {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Minimal Input Field Styling - Just a line */
+  .minimal-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #A8A29E;
+    border-radius: 0;
+    padding: 10px 0;
+    outline: none;
+    transition: border-color 0.3s ease;
+  }
+  
+  .minimal-input:focus {
+    border-color: #1C1917;
+  }
+}
