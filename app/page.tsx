@@ -3,7 +3,7 @@
 import CanvasBackground from '@/components/CanvasBackground'
 
 export default function Home() {
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()
     // Handle form submission here
     console.log('Form submitted')
@@ -35,7 +35,7 @@ export default function Home() {
         </p>
 
         {/* Waitlist */}
-        <form id="waitlist" onSubmit={handleSubmit} className="fade-in-up delay-300 mt-16 w-full max-w-md mx-auto flex flex-col md:flex-row gap-4 items-end md:items-center">
+        <div id="waitlist" className="fade-in-up delay-300 mt-16 w-full max-w-md mx-auto flex flex-col md:flex-row gap-4 items-end md:items-center">
           <div className="flex-grow w-full relative">
             <label htmlFor="email" className="sr-only">Email Address</label>
             <input 
@@ -44,16 +44,16 @@ export default function Home() {
               name="email"
               placeholder="Enter your email" 
               className="minimal-input w-full text-lg font-light"
-              required
             />
           </div>
           <button 
-            type="submit"
+            type="button"
+            onClick={handleSubmit}
             className="w-full md:w-auto px-8 py-3 bg-[#16423C] text-[#F2F5F4] hover:bg-[#0A2621] transition-colors duration-300 font-medium text-sm rounded-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
           >
             Join Waitlist
           </button>
-        </form>
+        </div>
 
       </main>
 

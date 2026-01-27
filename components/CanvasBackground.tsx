@@ -24,6 +24,7 @@ export default function CanvasBackground() {
     ]
 
     function resize() {
+      if (!canvas) return
       width = canvas.width = window.innerWidth
       height = canvas.height = window.innerHeight
     }
@@ -45,9 +46,9 @@ export default function CanvasBackground() {
         this.yBase = height / 2 + (Math.random() - 0.5) * 200
       }
 
-      draw(time: number) {
-        ctx.beginPath()
-        ctx.moveTo(0, this.yBase)
+      draw(time: number, context: CanvasRenderingContext2D) {
+        context.beginPath()
+        context.moveTo(0, this.yBase)
         
         // Draw sine wave across the screen
         for (let x = 0; x <= width; x += 10) {
@@ -55,20 +56,20 @@ export default function CanvasBackground() {
           const y = this.yBase + 
                    Math.sin(x * 0.003 + time * this.speed + this.offset) * this.amplitude +
                    Math.sin(x * 0.007 + time * 0.5 * this.speed) * (this.amplitude * 0.5)
-          ctx.lineTo(x, y)
+          context.lineTo(x, y)
         }
 
         // Fill downward to create "fluid" look or stroke for "lines" look
         // Here we stroke for a "voice wave" aesthetic
-        ctx.strokeStyle = this.color
-        ctx.lineWidth = 2
-        ctx.stroke()
+        context.strokeStyle = this.color
+        context.lineWidth = 2
+        context.stroke()
         
         // Optional: Fill below for depth
-        ctx.lineTo(width, height)
-        ctx.lineTo(0, height)
-        ctx.fillStyle = this.color
-        ctx.fill()
+        context.lineTo(width, height)
+        context.lineTo(0, height)
+        context.fillStyle = this.color
+        context.fill()
       }
     }
 
@@ -84,10 +85,11 @@ export default function CanvasBackground() {
     let animationFrameId: number
 
     function animate() {
+      if (!canvas || !ctx) return
       ctx.clearRect(0, 0, width, height)
       
       time += 1
-      waves.forEach(wave => wave.draw(time))
+      waves.forEach(wave => wave.draw(time, ctx))
 
       animationFrameId = requestAnimationFrame(animate)
     }
