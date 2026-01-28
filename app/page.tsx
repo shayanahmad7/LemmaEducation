@@ -1,13 +1,86 @@
 'use client'
 
+import { useState } from 'react'
 import CanvasBackground from '@/components/CanvasBackground'
 import DemoSection from '@/components/DemoSection'
 
 export default function Home() {
-  const handleSubmit = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const [email, setEmail] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const [message, setMessage] = useState<string | null>(null)
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    // Handle form submission here
-    console.log('Form submitted')
+
+    // Client-side validation
+    if (!email.trim()) {
+      setStatus('error')
+      setMessage('Please enter your email.')
+      return
+    }
+
+    // Basic email format check on client
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email.trim())) {
+      setStatus('error')
+      setMessage('Please enter a valid email address.')
+      return
+    }
+
+    setIsSubmitting(true)
+    setStatus('idle')
+    setMessage(null)
+
+    try {
+      const res = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      })
+
+      // Handle network errors
+      if (!res.ok && res.status >= 500) {
+        throw new Error('Server error. Please try again later.')
+      }
+
+      let data
+      try {
+        data = await res.json()
+      } catch (parseError) {
+        throw new Error('Invalid response from server. Please try again.')
+      }
+
+      // Handle API errors
+      if (!data.ok) {
+        throw new Error(data.error || 'Something went wrong. Please try again.')
+      }
+
+      // Success - show message (could be new signup or already on waitlist)
+      setStatus('success')
+      setMessage(data.message || 'You\'re on the waitlist. We\'ll be in touch soon.')
+      setEmail('')
+    } catch (err) {
+      setStatus('error')
+      
+      // Provide user-friendly error messages
+      if (err instanceof Error) {
+        // Check for specific error types
+        if (err.message.includes('fetch')) {
+          setMessage('Network error. Please check your connection and try again.')
+        } else if (err.message.includes('timeout')) {
+          setMessage('Request timed out. Please try again.')
+        } else {
+          setMessage(err.message)
+        }
+      } else {
+        setMessage('An unexpected error occurred. Please try again.')
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -36,25 +109,47 @@ export default function Home() {
         </p>
 
         {/* Waitlist */}
-        <div id="waitlist" className="fade-in-up delay-300 mt-16 w-full max-w-md mx-auto flex flex-col md:flex-row gap-4 items-end md:items-center">
+        <form
+          id="waitlist"
+          onSubmit={handleSubmit}
+          className="fade-in-up delay-300 mt-16 w-full max-w-md mx-auto flex flex-col md:flex-row gap-4 items-end md:items-center"
+        >
           <div className="flex-grow w-full relative">
-            <label htmlFor="email" className="sr-only">Email Address</label>
-            <input 
-              type="email" 
-              id="email" 
+            <label htmlFor="email" className="sr-only">
+              Email Address
+            </label>
+            <input
+              type="email"
+              id="email"
               name="email"
-              placeholder="Enter your email" 
+              placeholder="Enter your email"
               className="minimal-input w-full text-lg font-light"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={isSubmitting}
+              required
             />
           </div>
-          <button 
-            type="button"
-            onClick={handleSubmit}
-            className="w-full md:w-auto px-8 py-3 bg-[#16423C] text-[#F2F5F4] hover:bg-[#0A2621] transition-colors duration-300 font-medium text-sm rounded-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full md:w-auto px-8 py-3 bg-[#16423C] text-[#F2F5F4] hover:bg-[#0A2621] disabled:opacity-70 disabled:cursor-not-allowed transition-colors duration-300 font-medium text-sm rounded-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
           >
-            Join Waitlist
+            {isSubmitting ? 'Joining...' : 'Join Waitlist'}
           </button>
-        </div>
+        </form>
+
+        {message && (
+          <p
+            className={`mt-4 text-sm fade-in-up ${
+              status === 'success' 
+                ? 'text-[#16423C]' 
+                : 'text-red-600'
+            }`}
+          >
+            {message}
+          </p>
+        )}
 
       </main>
 
