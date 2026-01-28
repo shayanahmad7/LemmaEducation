@@ -142,7 +142,7 @@ export default function Home() {
 
           <div className="text-left md:text-right">
             <p className="serif italic text-xl mb-2 text-[#16423C]">LemmaEducation</p>
-            <p className="text-[10px] text-[#5C7069] tracking-wide">© 2026 Lemma Education. NYUAD / startAD.</p>
+            <p className="text-[10px] text-[#5C7069] tracking-wide">© 2026 Lemma Education.</p>
           </div>
         </div>
       </footer>

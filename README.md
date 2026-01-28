@@ -69,4 +69,4 @@ npm start
 
 ## License
 
-© 2026 Lemma Education. NYUAD / startAD.
+© 2026 Lemma Education.
