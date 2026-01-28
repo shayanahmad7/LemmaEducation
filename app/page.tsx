@@ -1,6 +1,7 @@
 'use client'
 
 import CanvasBackground from '@/components/CanvasBackground'
+import DemoSection from '@/components/DemoSection'
 
 export default function Home() {
   const handleSubmit = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -85,6 +86,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Demo Section */}
+      <DemoSection />
 
       {/* Footer */}
       <footer className="w-full px-6 py-12 md:px-12 border-t border-[#D1DBD7] bg-[#F2F5F4] relative z-10">
