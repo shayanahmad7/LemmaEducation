@@ -114,6 +114,7 @@ const Canvas = forwardRef<CanvasRef, CanvasProps>(
         <Tldraw
           onMount={handleMount}
           shapeUtils={shapeUtils}
+          licenseKey={process.env.TLDRAW_LICENSE_KEY}
           // Disable persistence - no autosave (Phase 2 requirement)
           // Omit persistenceKey to disable autosave
         />
