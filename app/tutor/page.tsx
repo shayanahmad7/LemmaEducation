@@ -12,10 +12,11 @@
 
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 // @ts-expect-error - Editor is exported at runtime but TypeScript definitions may be incomplete
 import type { Editor } from 'tldraw'
 import TutorAvatar from '@/components/TutorAvatar'
+import TutorChatWindow from '@/components/TutorChatWindow'
 import FileUpload from '@/components/FileUpload'
 import TextInput from '@/components/TextInput'
 import EmbeddedBoard, { type EmbeddedBoardRef } from '@/components/EmbeddedBoard'
@@ -26,9 +27,11 @@ import Link from 'next/link'
 export default function TutorPage() {
   const [error, setError] = useState<string | null>(null)
   const [streamCanvas, setStreamCanvas] = useState(true)
+  const [language, setLanguage] = useState<string>('en')
   const [editor, setEditor] = useState<Editor | null>(null)
   const embeddedBoardRef = useRef<EmbeddedBoardRef>(null)
   const sendCanvasToTutorRef = useRef<() => Promise<void>>(() => Promise.resolve())
+  const lastSentCanvasHashRef = useRef<string | null>(null)
 
   // Stores uploaded image/PDF (as base64) until user sends or removes it
   const [uploadedImage, setUploadedImage] = useState<{
@@ -40,34 +43,61 @@ export default function TutorPage() {
     state,
     isConnected,
     isPaused,
+    isMuted,
     transcript,
+    chatHistory,
     connect,
     disconnect,
     sendText,
     sendImage,
     sendTextWithImage,
     sendCanvasImage,
+    mute,
+    unmute,
     pause,
     resume,
   } = useRealtimeTutor({
-    onError: (msg) => setError(msg),
+    onError: (userMsg) => setError(userMsg),
     onSpeechStarted: () => sendCanvasToTutorRef.current(),
   })
 
-  const sendCanvasToTutor = useCallback(async () => {
-    const base64 = await embeddedBoardRef.current?.captureViewport()
-    if (base64) sendCanvasImage(base64)
-  }, [sendCanvasImage])
+  const sendCanvasToTutor = useCallback(
+    async (forceSend = false) => {
+      if (!streamCanvas || !editor) return
+      const shapeIds = [...editor.getCurrentPageShapeIds()].sort()
+      const parts = shapeIds.map((id) => {
+        const b = editor.getShapePageBounds(id)
+        return `${id}:${b?.x ?? 0},${b?.y ?? 0},${b?.w ?? 0},${b?.h ?? 0}`
+      })
+      const data = parts.join('|')
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(data))
+      const hash = Array.from(new Uint8Array(buf))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('')
+        .slice(0, 16)
+      if (!forceSend && hash === lastSentCanvasHashRef.current) return
+      const result = await embeddedBoardRef.current?.captureViewport()
+      if (result) {
+        sendCanvasImage(result.base64, result.mimeType)
+        lastSentCanvasHashRef.current = hash
+      }
+    },
+    [sendCanvasImage, streamCanvas, editor]
+  )
 
   sendCanvasToTutorRef.current = () => {
     if (streamCanvas && editor) {
-      return sendCanvasToTutor()
+      return sendCanvasToTutor(true)
     }
     return Promise.resolve()
   }
 
+  useEffect(() => {
+    if (!isConnected) lastSentCanvasHashRef.current = null
+  }, [isConnected])
+
   useCanvasChangeDetection(editor, () => {
-    void sendCanvasToTutor()
+    void sendCanvasToTutor(false)
   }, {
     debounceMs: 2500,
     enabled: isConnected && streamCanvas && !isPaused,
@@ -81,6 +111,7 @@ export default function TutorPage() {
   /** Sends image only (no text). User clicked "Get help with this problem". */
   const handleSendImageOnly = () => {
     if (uploadedImage) {
+      if (streamCanvas && isConnected && editor) void sendCanvasToTutor(true)
       sendImage(uploadedImage.base64, uploadedImage.mimeType)
       setUploadedImage(null)
     }
@@ -91,6 +122,7 @@ export default function TutorPage() {
    * If uploadedImage exists, sends both in one message (text + image).
    */
   const handleTextSend = (text: string) => {
+    if (streamCanvas && isConnected && editor) void sendCanvasToTutor(true)
     if (uploadedImage) {
       sendTextWithImage(text, uploadedImage.base64, uploadedImage.mimeType)
       setUploadedImage(null)
@@ -101,36 +133,84 @@ export default function TutorPage() {
 
   const clearUploadedImage = () => setUploadedImage(null)
 
+  const avatarState = state === 'listening' && (isPaused || isMuted) ? 'waiting' : state
+
   return (
     <div className="h-screen flex flex-col bg-[#F2F5F4]">
-      <nav className="flex-shrink-0 w-full px-6 py-6 md:px-12 flex justify-between items-center border-b border-[#D1DBD7]">
+      <nav className="flex-shrink-0 w-full px-6 py-6 md:px-12 flex justify-between items-center border-b border-[#D1DBD7] gap-4">
         <Link
           href="/"
           className="text-2xl tracking-tight font-medium serif italic text-[#16423C] hover:text-[#0A2621]"
         >
           Lemma.
         </Link>
-        <Link
-          href="/"
-          className="text-xs uppercase tracking-widest text-[#3F524C] hover:text-[#16423C] transition-colors"
-        >
-          Back
-        </Link>
+        <div className="flex items-center gap-4">
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="text-sm border border-[#A3B8B2] rounded-sm pl-3 pr-8 py-1.5 text-[#3F524C] bg-white focus:ring-[#16423C] focus:border-[#16423C] appearance-none bg-[length:12px] bg-[right_0.5rem_center] bg-no-repeat"
+            style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%233F524C'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")" }}
+          >
+            <option value="en">English</option>
+          </select>
+          <Link
+            href="/"
+            className="text-xs uppercase tracking-widest text-[#3F524C] hover:text-[#16423C] transition-colors"
+          >
+            Back
+          </Link>
+        </div>
       </nav>
 
       <main className="flex-1 flex flex-col md:flex-row min-h-0 overflow-y-auto md:overflow-hidden">
         {/* Tutor panel */}
         <div className="flex flex-col w-full md:w-[40%] md:min-w-0 overflow-y-auto p-6 items-center justify-center">
           <div className="max-w-md w-full flex flex-col items-center gap-8 text-center">
-            <h1 className="serif text-3xl md:text-4xl italic text-[#0F2922]">
-              Math Tutor
-            </h1>
+            {!isConnected && (
+              <h1 className="serif text-3xl md:text-4xl italic text-[#0F2922]">
+                Math Tutor
+              </h1>
+            )}
             <p className="text-[#3F524C] text-sm max-w-sm">
               Use voice, type equations, or upload a problem. Use any combination
               that works for you.
             </p>
 
-            <TutorAvatar state={state} />
+            {!isConnected ? (
+              <TutorAvatar state={avatarState} />
+            ) : (
+              <div className="flex flex-row items-center justify-center gap-4 md:gap-6 w-full">
+                <TutorAvatar state={avatarState} />
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={disconnect}
+                    className="px-6 py-2 border border-[#A3B8B2] text-[#3F524C] rounded-sm hover:border-[#16423C] hover:text-[#16423C] transition-colors text-sm active:scale-[0.98]"
+                  >
+                    End session
+                  </button>
+                  <button
+                    onClick={isPaused ? resume : pause}
+                    className={`px-6 py-2 rounded-sm transition-colors text-sm active:scale-[0.98] ${
+                      isPaused
+                        ? 'bg-[#16423C] text-white border border-[#16423C]'
+                        : 'border border-[#A3B8B2] text-[#3F524C] hover:border-[#16423C] hover:text-[#16423C]'
+                    }`}
+                  >
+                    {isPaused ? 'Resume' : 'Pause'}
+                  </button>
+                  <button
+                    onClick={isMuted ? unmute : mute}
+                    className={`px-6 py-2 rounded-sm transition-colors text-sm active:scale-[0.98] ${
+                      isMuted
+                        ? 'bg-[#16423C] text-white border border-[#16423C]'
+                        : 'border border-[#A3B8B2] text-[#3F524C] hover:border-[#16423C] hover:text-[#16423C]'
+                    }`}
+                  >
+                    {isMuted ? 'Unmute' : 'Mute'}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {error && (
               <div className="w-full p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
@@ -139,40 +219,49 @@ export default function TutorPage() {
             )}
 
             {!isConnected ? (
-              <button
-                onClick={() => {
-                  setError(null)
-                  connect()
-                }}
-                className="px-8 py-3 bg-[#16423C] text-[#F2F5F4] rounded-sm hover:bg-[#0A2621] transition-colors font-medium"
-              >
-                Start tutoring
-              </button>
+              <>
+                <button
+                  onClick={() => {
+                    setError(null)
+                    connect({ language })
+                  }}
+                  className="px-8 py-3 bg-[#16423C] text-[#F2F5F4] rounded-sm hover:bg-[#0A2621] transition-colors font-medium"
+                >
+                  Start tutoring
+                </button>
+                {(chatHistory.length > 0) && (
+                  <TutorChatWindow
+                    messages={chatHistory}
+                    currentTranscript=""
+                    className="w-full"
+                  />
+                )}
+              </>
             ) : (
               <>
-                <div className="flex flex-wrap gap-2 justify-center items-center">
-                  <button
-                    onClick={disconnect}
-                    className="px-6 py-2 border border-[#A3B8B2] text-[#3F524C] rounded-sm hover:border-[#16423C] hover:text-[#16423C] transition-colors text-sm"
-                  >
-                    End session
-                  </button>
-                  <button
-                    onClick={isPaused ? resume : pause}
-                    className="px-6 py-2 border border-[#A3B8B2] text-[#3F524C] rounded-sm hover:border-[#16423C] hover:text-[#16423C] transition-colors text-sm"
-                  >
-                    {isPaused ? 'Resume' : 'Pause'}
-                  </button>
-                  <label className="flex items-center gap-2 text-sm text-[#3F524C] cursor-pointer">
+                <label className="flex items-center gap-2 text-sm text-[#3F524C] cursor-pointer mt-2 w-full justify-center">
                     <input
                       type="checkbox"
                       checked={streamCanvas}
                       onChange={(e) => setStreamCanvas(e.target.checked)}
-                      className="rounded border-[#A3B8B2] text-[#16423C] focus:ring-[#16423C]"
+                      className="sr-only"
                     />
-                    Stream canvas
+                    <span
+                      className={`w-4 h-4 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors ${
+                        streamCanvas
+                          ? 'bg-[#16423C] border-[#16423C]'
+                          : 'border-[#A3B8B2] bg-white'
+                      }`}
+                      aria-hidden
+                    >
+                      {streamCanvas && (
+                        <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </span>
+                    <span>Stream canvas</span>
                   </label>
-                </div>
 
                 <div className="w-full space-y-4 flex flex-col items-center max-w-sm">
                   <div className="flex flex-wrap gap-3 justify-center">
@@ -222,16 +311,11 @@ export default function TutorPage() {
                   />
                 </div>
 
-                {transcript && (
-                  <div className="w-full p-4 rounded-lg bg-white/60 border border-[#E6ECE9]">
-                    <p className="text-xs uppercase tracking-wider text-[#5C7069] mb-2">
-                      Tutor says
-                    </p>
-                    <p className="text-sm text-[#3F524C] leading-relaxed">
-                      {transcript}
-                    </p>
-                  </div>
-                )}
+                <TutorChatWindow
+                  messages={chatHistory}
+                  currentTranscript={transcript}
+                  className="w-full"
+                />
               </>
             )}
           </div>

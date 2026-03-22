@@ -19,8 +19,8 @@ import { MathBlockShapeUtil } from '@/components/MathBlockShape'
 import MathEditor from '@/components/MathEditor'
 
 export interface EmbeddedBoardRef {
-  /** Capture visible viewport as base64 PNG for Realtime API */
-  captureViewport: () => Promise<string | null>
+  /** Capture visible viewport as base64 for Realtime API (JPEG, viewport-only) */
+  captureViewport: () => Promise<{ base64: string; mimeType: string } | null>
 }
 
 export interface EmbeddedBoardProps {

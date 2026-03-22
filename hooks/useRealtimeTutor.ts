@@ -17,7 +17,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { TutorState } from '@/components/TutorAvatar'
 
 type UseRealtimeTutorOptions = {
-  onError?: (error: string) => void
+  /** Called with user-friendly message (raw error logged to console) */
+  onError?: (userMessage: string, rawError?: string) => void
   /** Called when user speech starts (for on-speech canvas send) */
   onSpeechStarted?: () => void
 }
@@ -30,11 +31,22 @@ type UseRealtimeTutorOptions = {
  */
 const LEMMA_CANVAS_ITEM_ID = 'lemma_canvas_context'
 
+function logErrorToServer(source: string, rawError?: string) {
+  void fetch('/api/realtime/log-error', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source, rawError: rawError ?? source }),
+  }).catch(() => {})
+}
+
 export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorOptions = {}) {
   const [state, setState] = useState<TutorState>('idle')
   const [isConnected, setIsConnected] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
+  const [isMuted, setIsMuted] = useState(false)
   const [transcript, setTranscript] = useState<string>('')
+  const [chatHistory, setChatHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([])
+  const transcriptRef = useRef<string>('')
   const pcRef = useRef<RTCPeerConnection | null>(null)
   const dcRef = useRef<RTCDataChannel | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -61,6 +73,9 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
     canvasItemIdRef.current = null
     setIsConnected(false)
     setIsPaused(false)
+    setIsMuted(false)
+    setTranscript('')
+    transcriptRef.current = ''
     setState('idle')
   }, [])
 
@@ -74,8 +89,9 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
    * 4. POST SDP offer directly to OpenAI (avoids server timeout)
    * 5. Set remote description with OpenAI's SDP answer
    */
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (options?: { language?: string }) => {
     try {
+      setChatHistory([])
       setState('thinking')
 
       const pc = new RTCPeerConnection()
@@ -95,7 +111,9 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
 
       // Add microphone as input track
       const ms = await navigator.mediaDevices.getUserMedia({ audio: true })
-      pc.addTrack(ms.getTracks()[0])
+      const track = ms.getTracks()[0]
+      pc.addTrack(track)
+      audioTrackRef.current = track
 
       // Data channel for JSON events (text input, image upload, server events)
       const dc = pc.createDataChannel('oai-events')
@@ -113,6 +131,7 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
       dc.addEventListener('open', () => {
         setIsConnected(true)
         setState('listening')
+        if (audioTrackRef.current) audioTrackRef.current.enabled = true
       })
 
       dc.addEventListener('close', () => {
@@ -123,15 +142,27 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
       await pc.setLocalDescription(offer)
 
       // 1. Get ephemeral token from our server (fast, ~1s)
-      const tokenRes = await fetch('/api/realtime/token', { method: 'POST' })
+      const tokenRes = await fetch('/api/realtime/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language: options?.language ?? 'en' }),
+      })
       if (!tokenRes.ok) {
         const err = await tokenRes.json().catch(() => ({}))
-        throw new Error(err.error || 'Failed to get token')
+        const errObj = err as { error?: string; details?: string }
+        const rawErr = errObj.error || errObj.details || JSON.stringify(err)
+        console.error('[Lemma Tutor] Token request failed:', rawErr)
+        logErrorToServer('token', rawErr)
+        throw new Error('Something went wrong. Please try again.')
       }
       const { value: ephemeralKey } = (await tokenRes.json()) as {
         value?: string
       }
-      if (!ephemeralKey) throw new Error('No token received')
+      if (!ephemeralKey) {
+        console.error('[Lemma Tutor] No token in response')
+        logErrorToServer('token', 'No token in response')
+        throw new Error('Something went wrong. Please try again.')
+      }
 
       // 2. Client connects directly to OpenAI for WebRTC (avoids server timeout)
       const sdpResponse = await fetch(
@@ -148,10 +179,14 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
 
       if (!sdpResponse.ok) {
         const errText = await sdpResponse.text()
-        let errMsg = 'Failed to create session'
+        console.error('[Lemma Tutor] WebRTC/session error:', errText)
+        logErrorToServer('webrtc', errText)
+        let errMsg = 'Something went wrong. Please try again.'
         try {
           const parsed = JSON.parse(errText)
-          errMsg = parsed.error?.message || parsed.error || errMsg
+          if (parsed.error?.message?.includes('504') || parsed.error?.message?.includes('timeout') || errText.includes('504') || errText.includes('timeout')) {
+            errMsg = 'OpenAI is taking too long. Please try again.'
+          }
         } catch {
           if (errText.includes('504') || errText.includes('timeout')) {
             errMsg = 'OpenAI is taking too long. Please try again.'
@@ -166,8 +201,11 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
         sdp: answerSdp,
       })
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Connection failed'
-      onError?.(message)
+      const rawMsg = err instanceof Error ? err.message : String(err)
+      const userMsg = rawMsg.includes('try again') ? rawMsg : 'Something went wrong. Please try again.'
+      console.error('[Lemma Tutor] Connection error:', rawMsg)
+      logErrorToServer('connection', rawMsg)
+      onError?.(userMsg, rawMsg)
       setState('idle')
       disconnect()
     }
@@ -187,35 +225,56 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
         case 'conversation.item.added': {
           const item = (event as { item?: { id?: string; content?: Array<{ type?: string }> } })
             .item
-          if (item?.content?.some((c) => c.type === 'input_image')) {
+          if (item?.id === LEMMA_CANVAS_ITEM_ID && item?.content?.some((c) => c.type === 'input_image')) {
             canvasItemIdRef.current = item.id ?? null
           }
           break
         }
         case 'input_audio_buffer.speech_started':
+          onSpeechStarted?.()
           setState('listening')
           break
         case 'response.created':
           setState('thinking')
           setTranscript('')
+          transcriptRef.current = ''
           break
-        case 'response.output_audio_transcript.delta':
-          setTranscript((prev) => prev + ((event as { delta?: string }).delta ?? ''))
+        case 'response.output_audio_transcript.delta': {
+          const delta = (event as { delta?: string }).delta ?? ''
+          setTranscript((prev) => prev + delta)
+          transcriptRef.current += delta
           break
+        }
         case 'response.output_audio.delta':
           setState('speaking')
           break
-        case 'response.done':
         case 'response.output_audio.done':
           setState('listening')
           break
-        case 'response.cancelled':
+        case 'response.done': {
+          const content = transcriptRef.current.trim()
+          if (content) {
+            setChatHistory((prev) => [...prev, { role: 'assistant', content }])
+          }
           setState('listening')
           break
-        case 'error':
-          onError?.((event as { error?: { message?: string } }).error?.message ?? 'An error occurred')
+        }
+        case 'response.cancelled': {
+          const content = transcriptRef.current.trim()
+          if (content) {
+            setChatHistory((prev) => [...prev, { role: 'assistant', content }])
+          }
+          setState('listening')
+          break
+        }
+        case 'error': {
+          const rawMsg = (event as { error?: { message?: string } }).error?.message ?? 'Unknown error'
+          console.error('[Lemma Tutor] Session error:', rawMsg)
+          logErrorToServer('session', rawMsg)
+          onError?.('Something went wrong. Please try again.', rawMsg)
           setState('idle')
           break
+        }
       }
     },
     [onError, onSpeechStarted]
@@ -229,6 +288,7 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
     const dc = dcRef.current
     if (!dc || dc.readyState !== 'open') return
 
+    setChatHistory((prev) => [...prev, { role: 'user', content: text }])
     dc.send(
       JSON.stringify({
         type: 'conversation.item.create',
@@ -251,6 +311,7 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
     const dc = dcRef.current
     if (!dc || dc.readyState !== 'open') return
 
+    setChatHistory((prev) => [...prev, { role: 'user', content: '[Sent an image]' }])
     const format = mimeType.replace('image/', '')
     dc.send(
       JSON.stringify({
@@ -280,6 +341,7 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
       const dc = dcRef.current
       if (!dc || dc.readyState !== 'open') return
 
+      setChatHistory((prev) => [...prev, { role: 'user', content: text }])
       const format = mimeType.replace('image/', '')
       dc.send(
         JSON.stringify({
@@ -307,7 +369,7 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
    * Sends canvas image as context only (no response.create).
    * Uses replace strategy: deletes previous canvas item before adding new one.
    */
-  const sendCanvasImage = useCallback((base64: string) => {
+  const sendCanvasImage = useCallback((base64: string, mimeType: string = 'image/jpeg') => {
     const dc = dcRef.current
     if (!dc || dc.readyState !== 'open') return
 
@@ -321,6 +383,7 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
       canvasItemIdRef.current = null
     }
 
+    const format = mimeType.replace('image/', '')
     dc.send(
       JSON.stringify({
         type: 'conversation.item.create',
@@ -331,7 +394,7 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
           content: [
             {
               type: 'input_image',
-              image_url: `data:image/png;base64,${base64}`,
+              image_url: `data:image/${format};base64,${base64}`,
             },
           ],
         },
@@ -339,19 +402,29 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
     )
   }, [])
 
-  const pause = useCallback(() => {
-    if (audioTrackRef.current) {
-      audioTrackRef.current.enabled = false
-      setIsPaused(true)
+  const mute = useCallback(() => {
+    setIsMuted(true)
+    if (audioTrackRef.current) audioTrackRef.current.enabled = false
+  }, [])
+
+  const unmute = useCallback(() => {
+    setIsMuted(false)
+    if (audioTrackRef.current && !isPaused) {
+      audioTrackRef.current.enabled = true
     }
+  }, [isPaused])
+
+  const pause = useCallback(() => {
+    setIsPaused(true)
+    if (audioTrackRef.current) audioTrackRef.current.enabled = false
   }, [])
 
   const resume = useCallback(() => {
-    if (audioTrackRef.current) {
+    setIsPaused(false)
+    if (audioTrackRef.current && !isMuted) {
       audioTrackRef.current.enabled = true
-      setIsPaused(false)
     }
-  }, [])
+  }, [isMuted])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -362,13 +435,17 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
     state,
     isConnected,
     isPaused,
+    isMuted,
     transcript,
+    chatHistory,
     connect,
     disconnect,
     sendText,
     sendImage,
     sendTextWithImage,
     sendCanvasImage,
+    mute,
+    unmute,
     pause,
     resume,
   }

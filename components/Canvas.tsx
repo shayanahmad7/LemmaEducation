@@ -38,8 +38,8 @@ export interface CanvasRef {
   exportBoard: () => string | null
   /** Get editor instance */
   getEditor: () => Editor | null
-  /** Capture visible viewport as base64 PNG for Realtime API (scale 1 for cost) */
-  captureViewport: () => Promise<string | null>
+  /** Capture visible viewport as base64 for Realtime API (JPEG, viewport-only, optimized for cost) */
+  captureViewport: () => Promise<{ base64: string; mimeType: string } | null>
 }
 
 /**
@@ -113,20 +113,28 @@ const Canvas = forwardRef<CanvasRef, CanvasProps>(
         const editor = editorRef.current
         if (!editor) return null
         try {
-          const shapeIds = editor.getCurrentPageShapeIds()
-          if (shapeIds.size === 0) return null
-          const result = await editor.toImage([...shapeIds], {
-            format: 'png',
-            scale: 1,
+          const viewportBounds = editor.getViewportPageBounds()
+          const renderingShapes = editor.getCurrentPageRenderingShapesSorted()
+          const shapeIds = renderingShapes.map((s: { id: string }) => s.id)
+          if (shapeIds.length === 0) return null
+          const result = await editor.toImage(shapeIds, {
+            bounds: viewportBounds,
+            format: 'jpeg',
+            quality: 0.75,
+            scale: 0.75,
           })
           const blob = result?.blob
           if (!blob) return null
-          return new Promise<string | null>((resolve) => {
+          return new Promise<{ base64: string; mimeType: string } | null>((resolve) => {
             const reader = new FileReader()
             reader.onloadend = () => {
               const dataUrl = reader.result as string
               const base64 = dataUrl?.split(',')[1] ?? null
-              resolve(base64)
+              if (base64) {
+                resolve({ base64, mimeType: 'image/jpeg' })
+              } else {
+                resolve(null)
+              }
             }
             reader.onerror = () => resolve(null)
             reader.readAsDataURL(blob)

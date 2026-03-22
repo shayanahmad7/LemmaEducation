@@ -48,13 +48,14 @@ export function useCanvasChangeDetection(
     const cleanup = editor.store.listen(
       (entry: { changes: { added: Record<string, unknown>; updated: Record<string, unknown>; removed: Record<string, unknown> } }) => {
         const { added, updated, removed } = entry.changes
-        const hasShapeChanges =
-          Object.keys(added).length > 0 ||
-          Object.keys(updated).length > 0 ||
-          Object.keys(removed).length > 0
-        if (hasShapeChanges) {
-          scheduleOnChange()
-        }
+        const numAdded = Object.keys(added).length
+        const numUpdated = Object.keys(updated).length
+        const numRemoved = Object.keys(removed).length
+        const hasShapeChanges = numAdded > 0 || numUpdated > 0 || numRemoved > 0
+        if (!hasShapeChanges) return
+        // Skip insignificant changes: single position tweak (1 updated, 0 add/remove)
+        if (numAdded === 0 && numRemoved === 0 && numUpdated === 1) return
+        scheduleOnChange()
       },
       { source: 'user', scope: 'document' }
     )

@@ -11,12 +11,30 @@
  */
 
 import { NextResponse } from 'next/server'
+import { getLanguageRestrictionInstruction } from '@/lib/languageInstructions'
 
 /**
  * System prompt that configures the tutor's Socratic teaching style.
  * Instructs the model to guide with questions rather than give direct answers.
  */
 const SOCRATIC_TUTOR_INSTRUCTIONS = `You are a Socratic math tutor. Your role is to guide students to discover solutions themselves, not to give answers directly.
+
+Scope Control:
+Before responding, determine whether the user’s request is related to mathematics.
+
+- If the request is clearly mathematical, proceed with Socratic tutoring.
+- If the request is clearly non-mathematical, do NOT attempt to reinterpret it as math or invent a math problem.
+- If the request is ambiguous or unclear, ask a brief clarification question before proceeding.
+
+Handling Non-Math Requests:
+If the user’s request is not related to math, respond politely and redirect them back to math. For example:
+“I’m here to help with math questions. Do you have one I can help you with?”
+
+Important Guardrails:
+- Do NOT force a mathematical framework onto unrelated topics.
+- Do NOT hallucinate or fabricate math problems from non-math input.
+- Do NOT over-reject: if the query can reasonably involve math, try to guide it in a mathematical direction.
+- Prefer clarification over rejection when unsure.
 
 Always:
 - Hear the student's reasoning first before responding
@@ -40,9 +58,11 @@ You may receive periodic images of the student's whiteboard. Use them as context
  * Creates an ephemeral token for the Realtime API. Called by the client
  * before establishing the WebRTC connection.
  *
+ * Body: { language?: string } - optional; defaults to 'en'
+ *
  * @returns { value: string } - Ephemeral token (e.g. "ek_...") for Authorization header
  */
-export async function POST() {
+export async function POST(request: Request) {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
     return NextResponse.json(
@@ -51,14 +71,27 @@ export async function POST() {
     )
   }
 
+  let language = 'en'
+  try {
+    const body = await request.json()
+    if (body?.language && typeof body.language === 'string') {
+      language = body.language
+    }
+  } catch {
+    // ignore parse errors; use default language
+  }
+
+  const languageRestriction = getLanguageRestrictionInstruction(language)
+  const instructions = `${SOCRATIC_TUTOR_INSTRUCTIONS}\n\n${languageRestriction}`
+
   /**
    * Session config sent to OpenAI. See TUTOR_DOCUMENTATION.md for why
    * output_modalities is ['audio'] only (not ['audio', 'text']).
    */
   const sessionConfig = {
     type: 'realtime',
-    model: 'gpt-realtime',
-    instructions: SOCRATIC_TUTOR_INSTRUCTIONS,
+    model: 'gpt-realtime-mini',
+    instructions,
     output_modalities: ['audio'],
     audio: { output: { voice: 'marin' } },
   }
@@ -80,7 +113,7 @@ export async function POST() {
       const err = await response.text()
       console.error('OpenAI client_secrets error:', err)
       return NextResponse.json(
-        { error: 'Failed to create token', details: err },
+        { error: 'Failed to create token' },
         { status: response.status }
       )
     }
