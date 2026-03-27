@@ -12,14 +12,14 @@
 
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 // @ts-expect-error - Editor is exported at runtime but TypeScript definitions may be incomplete
 import type { Editor } from 'tldraw'
-import TutorAvatar from '@/components/TutorAvatar'
 import TutorChatWindow from '@/components/TutorChatWindow'
 import FileUpload from '@/components/FileUpload'
 import TextInput from '@/components/TextInput'
 import EmbeddedBoard, { type EmbeddedBoardRef } from '@/components/EmbeddedBoard'
+import GuidedTutorialOverlay, { type TutorialStep } from '@/components/GuidedTutorialOverlay'
 import { useRealtimeTutor } from '@/hooks/useRealtimeTutor'
 import { useCanvasChangeDetection } from '@/hooks/useCanvasChangeDetection'
 import Link from 'next/link'
@@ -29,6 +29,8 @@ export default function TutorPage() {
   const [streamCanvas, setStreamCanvas] = useState(true)
   const [language, setLanguage] = useState<string>('en')
   const [editor, setEditor] = useState<Editor | null>(null)
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false)
+  const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
   const embeddedBoardRef = useRef<EmbeddedBoardRef>(null)
   const sendCanvasToTutorRef = useRef<() => Promise<void>>(() => Promise.resolve())
   const lastSentCanvasHashRef = useRef<string | null>(null)
@@ -44,6 +46,7 @@ export default function TutorPage() {
     isConnected,
     isPaused,
     isMuted,
+    isSpeakerMuted,
     transcript,
     chatHistory,
     connect,
@@ -56,6 +59,8 @@ export default function TutorPage() {
     unmute,
     pause,
     resume,
+    muteSpeaker,
+    unmuteSpeaker,
   } = useRealtimeTutor({
     onError: (userMsg) => setError(userMsg),
     onSpeechStarted: () => sendCanvasToTutorRef.current(),
@@ -110,6 +115,7 @@ export default function TutorPage() {
 
   /** Sends image only (no text). User clicked "Get help with this problem". */
   const handleSendImageOnly = () => {
+    if (isPaused) return
     if (uploadedImage) {
       if (streamCanvas && isConnected && editor) void sendCanvasToTutor(true)
       sendImage(uploadedImage.base64, uploadedImage.mimeType)
@@ -122,6 +128,7 @@ export default function TutorPage() {
    * If uploadedImage exists, sends both in one message (text + image).
    */
   const handleTextSend = (text: string) => {
+    if (isPaused) return
     if (streamCanvas && isConnected && editor) void sendCanvasToTutor(true)
     if (uploadedImage) {
       sendTextWithImage(text, uploadedImage.base64, uploadedImage.mimeType)
@@ -132,8 +139,85 @@ export default function TutorPage() {
   }
 
   const clearUploadedImage = () => setUploadedImage(null)
+  const openTutorial = () => {
+    setTutorialStepIndex(0)
+    setIsTutorialOpen(true)
+  }
+  const closeTutorial = () => setIsTutorialOpen(false)
 
-  const avatarState = state === 'listening' && (isPaused || isMuted) ? 'waiting' : state
+  const statusLabel = !isConnected
+    ? 'Disconnected'
+    : isPaused
+    ? 'Paused'
+    : state === 'thinking'
+    ? 'Thinking'
+    : state === 'speaking'
+    ? 'Speaking'
+    : 'Listening'
+  const showAssistantStreaming = isConnected && (state === 'thinking' || state === 'speaking')
+  const showTutorialPreSessionControls = !isConnected && isTutorialOpen
+  const showCanvasStreamControl = isConnected || isTutorialOpen
+
+  const tutorialSteps = useMemo<TutorialStep[]>(
+    () => [
+      {
+        id: 'start',
+        title: 'Start tutoring session',
+        description:
+          'Use Start tutoring to open a live tutor session. Your chat history stays visible after End, then resets when you start a new session.',
+        targetId: 'start-tutoring',
+        placement: 'bottom',
+      },
+      {
+        id: 'session-controls',
+        title: 'Session controls',
+        description:
+          'Pause stops model output, Mic toggles your voice input, Sound toggles AI audio output, and End closes the session.',
+        targetId: 'session-controls',
+        placement: 'bottom',
+      },
+      {
+        id: 'stream-canvas',
+        title: 'Stream canvas',
+        description:
+          'Turn Stream canvas on when you want the tutor to continuously receive board updates while you work.',
+        targetId: 'stream-canvas-toggle',
+        placement: 'bottom',
+      },
+      {
+        id: 'math-mode',
+        title: 'Math mode',
+        description:
+          'Click Math to insert an editable expression block directly on the board. New blocks appear in view and stack predictably.',
+        targetId: 'board-tool-math',
+        placement: 'bottom',
+      },
+      {
+        id: 'board-tools',
+        title: 'Pointer, pen, and hand tools',
+        description:
+          'Pointer selects and edits objects, Pen draws freehand strokes, and Hand pans the infinite canvas.',
+        targetId: 'board-tool-group',
+        placement: 'bottom',
+      },
+      {
+        id: 'board-export',
+        title: 'Export from board menu',
+        description:
+          'Open the collapsed burger menu on the board, choose Export, then select your preferred file format.',
+        targetId: 'tutor-board-shell',
+        targetSelector: [
+          '[data-tutorial-id="tutor-board-shell"] .tlui-main-menu__trigger',
+          '[data-tutorial-id="tutor-board-shell"] button[aria-label="Main menu"]',
+          '[data-tutorial-id="tutor-board-shell"] button[title="Main menu"]',
+          '[data-tutorial-id="tutor-board-shell"] [data-testid="main-menu.button"]',
+          '[data-tutorial-id="tutor-board-shell"] [data-testid="main.menu"]',
+        ],
+        placement: 'right',
+      },
+    ],
+    []
+  )
 
   return (
     <div className="h-screen flex flex-col bg-[#F2F5F4]">
@@ -145,6 +229,13 @@ export default function TutorPage() {
           Lemma.
         </Link>
         <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={openTutorial}
+            className="text-xs uppercase tracking-widest text-[#3F524C] hover:text-[#16423C] transition-colors"
+          >
+            Tutorial
+          </button>
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
@@ -164,111 +255,180 @@ export default function TutorPage() {
 
       <main className="flex-1 flex flex-col md:flex-row min-h-0 overflow-y-auto md:overflow-hidden">
         {/* Tutor panel */}
-        <div className="flex flex-col w-full md:w-[40%] md:min-w-0 overflow-y-auto p-6 items-center justify-center">
-          <div className="max-w-md w-full flex flex-col items-center gap-8 text-center">
-            {!isConnected && (
-              <h1 className="serif text-3xl md:text-4xl italic text-[#0F2922]">
-                Math Tutor
-              </h1>
-            )}
-            <p className="text-[#3F524C] text-sm max-w-sm">
-              Use voice, type equations, or upload a problem. Use any combination
-              that works for you.
-            </p>
-
-            {!isConnected ? (
-              <TutorAvatar state={avatarState} />
-            ) : (
-              <div className="flex flex-row items-center justify-center gap-4 md:gap-6 w-full">
-                <TutorAvatar state={avatarState} />
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={disconnect}
-                    className="px-6 py-2 border border-[#A3B8B2] text-[#3F524C] rounded-sm hover:border-[#16423C] hover:text-[#16423C] transition-colors text-sm active:scale-[0.98]"
-                  >
-                    End session
-                  </button>
-                  <button
-                    onClick={isPaused ? resume : pause}
-                    className={`px-6 py-2 rounded-sm transition-colors text-sm active:scale-[0.98] ${
-                      isPaused
-                        ? 'bg-[#16423C] text-white border border-[#16423C]'
-                        : 'border border-[#A3B8B2] text-[#3F524C] hover:border-[#16423C] hover:text-[#16423C]'
+        <div className="flex flex-col w-full md:w-[45%] md:min-w-0 p-4 md:p-6 min-h-0">
+          <div className="w-full h-full bg-white/60 border border-[#D1DBD7] rounded-xl overflow-hidden flex flex-col min-h-[500px]">
+            <div className="px-4 py-3 border-b border-[#E6ECE9] bg-white/70 flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full ${
+                      !isConnected
+                        ? 'bg-[#A3B8B2]'
+                        : isPaused
+                        ? 'bg-[#5C7069]'
+                        : state === 'speaking'
+                        ? 'bg-[#16423C] animate-pulse'
+                        : state === 'thinking'
+                        ? 'bg-[#3F524C] animate-pulse'
+                        : 'bg-[#16423C]'
                     }`}
-                  >
-                    {isPaused ? 'Resume' : 'Pause'}
-                  </button>
-                  <button
-                    onClick={isMuted ? unmute : mute}
-                    className={`px-6 py-2 rounded-sm transition-colors text-sm active:scale-[0.98] ${
-                      isMuted
-                        ? 'bg-[#16423C] text-white border border-[#16423C]'
-                        : 'border border-[#A3B8B2] text-[#3F524C] hover:border-[#16423C] hover:text-[#16423C]'
-                    }`}
-                  >
-                    {isMuted ? 'Unmute' : 'Mute'}
-                  </button>
+                  />
+                  <span className="text-xs uppercase tracking-wider text-[#5C7069]">{statusLabel}</span>
                 </div>
+                {!isConnected ? (
+                  <div className="flex flex-wrap justify-end items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setError(null)
+                        connect({ language })
+                      }}
+                      className="px-4 py-2 bg-[#16423C] text-[#F2F5F4] rounded-sm hover:bg-[#0A2621] transition-colors text-sm font-medium"
+                      data-tutorial-id="start-tutoring"
+                    >
+                      Start tutoring
+                    </button>
+
+                    {showTutorialPreSessionControls && (
+                      <div
+                        className="flex flex-wrap justify-end gap-2 opacity-95"
+                        data-tutorial-id="session-controls"
+                      >
+                        <button
+                          type="button"
+                          disabled
+                          className="px-3 py-1.5 rounded-sm border border-[#A3B8B2] text-[#7F908B] text-xs cursor-not-allowed"
+                        >
+                          Pause
+                        </button>
+                        <button
+                          type="button"
+                          disabled
+                          className="px-3 py-1.5 rounded-sm border border-[#A3B8B2] text-[#7F908B] text-xs cursor-not-allowed"
+                        >
+                          Mic off
+                        </button>
+                        <button
+                          type="button"
+                          disabled
+                          className="px-3 py-1.5 rounded-sm border border-[#A3B8B2] text-[#7F908B] text-xs cursor-not-allowed"
+                        >
+                          Sound off
+                        </button>
+                        <button
+                          type="button"
+                          disabled
+                          className="px-3 py-1.5 rounded-sm border border-[#A3B8B2] text-[#7F908B] text-xs cursor-not-allowed"
+                        >
+                          End
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap justify-end gap-2" data-tutorial-id="session-controls">
+                    <button
+                      onClick={isPaused ? resume : pause}
+                      className={`px-3 py-1.5 rounded-sm transition-colors text-xs ${
+                        isPaused
+                          ? 'bg-[#16423C] text-white border border-[#16423C]'
+                          : 'border border-[#A3B8B2] text-[#3F524C] hover:border-[#16423C] hover:text-[#16423C]'
+                      }`}
+                    >
+                      {isPaused ? 'Resume' : 'Pause'}
+                    </button>
+                    <button
+                      onClick={isMuted ? unmute : mute}
+                      className={`px-3 py-1.5 rounded-sm transition-colors text-xs ${
+                        isMuted
+                          ? 'bg-[#16423C] text-white border border-[#16423C]'
+                          : 'border border-[#A3B8B2] text-[#3F524C] hover:border-[#16423C] hover:text-[#16423C]'
+                      }`}
+                    >
+                      {isMuted ? 'Mic on' : 'Mic off'}
+                    </button>
+                    <button
+                      onClick={isSpeakerMuted ? unmuteSpeaker : muteSpeaker}
+                      className={`px-3 py-1.5 rounded-sm transition-colors text-xs ${
+                        isSpeakerMuted
+                          ? 'bg-[#16423C] text-white border border-[#16423C]'
+                          : 'border border-[#A3B8B2] text-[#3F524C] hover:border-[#16423C] hover:text-[#16423C]'
+                      }`}
+                    >
+                      {isSpeakerMuted ? 'Sound on' : 'Sound off'}
+                    </button>
+                    <button
+                      onClick={disconnect}
+                      className="px-3 py-1.5 border border-[#A3B8B2] text-[#3F524C] rounded-sm hover:border-[#16423C] hover:text-[#16423C] transition-colors text-xs"
+                    >
+                      End
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
+
+              {showCanvasStreamControl && (
+                <label
+                  className={`flex items-center gap-2 text-xs text-[#3F524C] ${
+                    isConnected ? 'cursor-pointer' : 'cursor-not-allowed opacity-80'
+                  }`}
+                  data-tutorial-id="stream-canvas-toggle"
+                >
+                  <input
+                    type="checkbox"
+                    checked={streamCanvas}
+                    onChange={(e) => setStreamCanvas(e.target.checked)}
+                    disabled={!isConnected}
+                    className="sr-only"
+                  />
+                  <span
+                    className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors ${
+                      streamCanvas
+                        ? 'bg-[#16423C] border-[#16423C]'
+                        : 'border-[#A3B8B2] bg-white'
+                    }`}
+                    aria-hidden
+                  >
+                    {streamCanvas && (
+                      <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </span>
+                  <span>Stream canvas</span>
+                </label>
+              )}
+            </div>
 
             {error && (
-              <div className="w-full p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+              <div className="mx-4 mt-3 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
                 {error}
               </div>
             )}
 
-            {!isConnected ? (
-              <>
-                <button
-                  onClick={() => {
-                    setError(null)
-                    connect({ language })
-                  }}
-                  className="px-8 py-3 bg-[#16423C] text-[#F2F5F4] rounded-sm hover:bg-[#0A2621] transition-colors font-medium"
-                >
-                  Start tutoring
-                </button>
-                {(chatHistory.length > 0) && (
-                  <TutorChatWindow
-                    messages={chatHistory}
-                    currentTranscript=""
-                    className="w-full"
-                  />
-                )}
-              </>
-            ) : (
-              <>
-                <label className="flex items-center gap-2 text-sm text-[#3F524C] cursor-pointer mt-2 w-full justify-center">
-                    <input
-                      type="checkbox"
-                      checked={streamCanvas}
-                      onChange={(e) => setStreamCanvas(e.target.checked)}
-                      className="sr-only"
-                    />
-                    <span
-                      className={`w-4 h-4 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors ${
-                        streamCanvas
-                          ? 'bg-[#16423C] border-[#16423C]'
-                          : 'border-[#A3B8B2] bg-white'
-                      }`}
-                      aria-hidden
-                    >
-                      {streamCanvas && (
-                        <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </span>
-                    <span>Stream canvas</span>
-                  </label>
+            <TutorChatWindow
+              messages={chatHistory}
+              currentTranscript={isConnected ? transcript : ''}
+              isAssistantStreaming={showAssistantStreaming}
+              paused={isPaused}
+              className="m-4 mt-3 flex-1 min-h-0"
+            />
 
-                <div className="w-full space-y-4 flex flex-col items-center max-w-sm">
-                  <div className="flex flex-wrap gap-3 justify-center">
+            <div className="px-4 pb-4">
+              {!isConnected ? (
+                <p className="text-sm text-[#5C7069]">
+                  Start a session to send text, voice, or image prompts. Previous chat stays visible until you start a new session.
+                </p>
+              ) : isPaused ? (
+                <div className="w-full rounded-lg border border-[#E6ECE9] bg-white/60 p-4 text-sm text-[#5C7069]">
+                  Session is paused. Resume to send text, voice, or files.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-3 items-center">
                     <FileUpload
                       onUpload={handleUpload}
                       onError={setError}
-                      disabled={state === 'thinking'}
+                      disabled={state === 'thinking' || isPaused}
                     />
                   </div>
 
@@ -296,8 +456,8 @@ export default function TutorPage() {
                       <button
                         type="button"
                         onClick={handleSendImageOnly}
-                        disabled={state === 'thinking'}
-                        className="self-center px-3 py-1.5 text-xs bg-[#16423C] text-white rounded hover:bg-[#0A2621] disabled:opacity-50"
+                        disabled={state === 'thinking' || isPaused}
+                        className="self-start px-3 py-1.5 text-xs bg-[#16423C] text-white rounded hover:bg-[#0A2621] disabled:opacity-50"
                       >
                         Get help with this problem
                       </button>
@@ -306,23 +466,21 @@ export default function TutorPage() {
 
                   <TextInput
                     onSend={handleTextSend}
-                    disabled={state === 'thinking'}
+                    disabled={state === 'thinking' || isPaused}
                     placeholder="Type equations, steps, or clarifications..."
+                    className="w-full"
                   />
                 </div>
-
-                <TutorChatWindow
-                  messages={chatHistory}
-                  currentTranscript={transcript}
-                  className="w-full"
-                />
-              </>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
         {/* Board panel */}
-        <div className="flex flex-col w-full md:flex-1 min-h-[400px] md:min-h-0 p-4 md:p-6">
+        <div
+          className="flex flex-col w-full md:flex-1 min-h-[400px] md:min-h-0 p-4 md:p-6"
+          data-tutorial-id="tutor-board-shell"
+        >
           <EmbeddedBoard
             ref={embeddedBoardRef}
             className="flex-1 min-h-0"
@@ -330,6 +488,13 @@ export default function TutorPage() {
           />
         </div>
       </main>
+      <GuidedTutorialOverlay
+        open={isTutorialOpen}
+        steps={tutorialSteps}
+        currentStepIndex={tutorialStepIndex}
+        onStepChange={setTutorialStepIndex}
+        onClose={closeTutorial}
+      />
     </div>
   )
 }

@@ -81,24 +81,62 @@ const EmbeddedBoard = forwardRef<EmbeddedBoardRef, EmbeddedBoardProps>(
 
   const handleMathBlockClick = () => {
     if (!editor) return
-    const viewportCenter = editor.getViewportScreenCenter()
-    const pagePoint = editor.screenToPage(viewportCenter)
+    const shapeWidth = 200
+    const shapeHeight = 50
+    const viewportBounds = editor.getViewportPageBounds()
+    const selectedMathShape = editor
+      .getSelectedShapes()
+      .find((shape: { type?: string }) => shape.type === 'math-block')
+    const selectedBounds = selectedMathShape
+      ? editor.getShapePageBounds(selectedMathShape.id)
+      : null
+
+    const centerX = viewportBounds.x + viewportBounds.w / 2
+    const centerY = viewportBounds.y + viewportBounds.h / 2
+
+    const preferredX = selectedBounds
+      ? selectedBounds.x + 24
+      : centerX - shapeWidth / 2
+    const preferredY = selectedBounds
+      ? selectedBounds.y + selectedBounds.h + 20
+      : centerY - shapeHeight / 2
+
+    const minX = viewportBounds.x
+    const minY = viewportBounds.y
+    const maxX = Math.max(minX, viewportBounds.x + viewportBounds.w - shapeWidth)
+    const maxY = Math.max(minY, viewportBounds.y + viewportBounds.h - shapeHeight)
+
+    const x = Math.min(Math.max(preferredX, minX), maxX)
+    const y = Math.min(Math.max(preferredY, minY), maxY)
 
     const id = createShapeId()
     editor.createShape({
       id,
       type: 'math-block',
-      x: pagePoint.x - 100,
-      y: pagePoint.y - 25,
+      x,
+      y,
       props: {
         latex: '',
         displayMode: false,
-        w: 200,
-        h: 50,
+        w: shapeWidth,
+        h: shapeHeight,
       },
     })
 
     editor.setSelectedShapes([id])
+    const createdBounds = editor.getShapePageBounds(id)
+    if (createdBounds) {
+      const isWithinViewport =
+        createdBounds.x >= viewportBounds.x &&
+        createdBounds.y >= viewportBounds.y &&
+        createdBounds.x + createdBounds.w <= viewportBounds.x + viewportBounds.w &&
+        createdBounds.y + createdBounds.h <= viewportBounds.y + viewportBounds.h
+
+      if (!isWithinViewport) {
+        editor.zoomToBounds(createdBounds, { animation: { duration: 180 } })
+      }
+    }
+
     const shape = editor.getShape(id)
     if (shape && shape.type === 'math-block') {
       const props = shape.props as { latex: string; displayMode: boolean }

@@ -2,7 +2,7 @@
  * CanvasToolbar Component
  *
  * Toolbar for the canvas page providing:
- * - Tool selection (pen, eraser, select)
+ * - Tool selection (pointer, pen, hand, eraser, math)
  * - Undo/redo controls
  * - Zoom controls (zoom in, zoom out, fit to screen)
  * - Export button (for Subphase 2.3)
@@ -23,20 +23,11 @@ export interface CanvasToolbarProps {
   onExport?: (format: 'png' | 'pdf' | 'board') => void
   /** Whether export is enabled (enabled in Subphase 2.3) */
   exportEnabled?: boolean
-}
-
-type Tool = 'select' | 'draw' | 'eraser' | 'math'
-
-export interface CanvasToolbarProps {
-  /** tldraw editor instance */
-  editor: Editor | null
-  /** Callback when export is requested */
-  onExport?: (format: 'png' | 'pdf' | 'board') => void
-  /** Whether export is enabled (enabled in Subphase 2.3) */
-  exportEnabled?: boolean
   /** Callback when math block tool is clicked */
   onMathBlockClick?: () => void
 }
+
+type Tool = 'select' | 'draw' | 'hand' | 'eraser' | 'math'
 
 export default function CanvasToolbar({
   editor,
@@ -109,7 +100,10 @@ export default function CanvasToolbar({
   return (
     <div className="flex items-center gap-2 p-3 bg-white border-b border-[#D1DBD7]">
       {/* Tool selection */}
-      <div className="flex items-center gap-1 border-r border-[#E6ECE9] pr-3">
+      <div
+        className="flex items-center gap-1 border-r border-[#E6ECE9] pr-3"
+        data-tutorial-id="board-tool-group"
+      >
         <button
           type="button"
           onClick={() => setTool('select')}
@@ -118,9 +112,10 @@ export default function CanvasToolbar({
               ? 'bg-[#16423C] text-white'
               : 'bg-transparent text-[#3F524C] hover:bg-[#E6ECE9]'
           }`}
-          title="Select tool"
+          title="Pointer tool"
+          data-tutorial-id="board-tool-pointer"
         >
-          Select
+          Pointer
         </button>
         <button
           type="button"
@@ -130,9 +125,23 @@ export default function CanvasToolbar({
               ? 'bg-[#16423C] text-white'
               : 'bg-transparent text-[#3F524C] hover:bg-[#E6ECE9]'
           }`}
-          title="Draw tool"
+          title="Pen tool"
+          data-tutorial-id="board-tool-pen"
         >
-          Draw
+          Pen
+        </button>
+        <button
+          type="button"
+          onClick={() => setTool('hand')}
+          className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+            currentTool === 'hand'
+              ? 'bg-[#16423C] text-white'
+              : 'bg-transparent text-[#3F524C] hover:bg-[#E6ECE9]'
+          }`}
+          title="Hand tool"
+          data-tutorial-id="board-tool-hand"
+        >
+          Hand
         </button>
         <button
           type="button"
@@ -158,6 +167,7 @@ export default function CanvasToolbar({
               : 'bg-transparent text-[#3F524C] hover:bg-[#E6ECE9]'
           }`}
           title="Math block tool"
+          data-tutorial-id="board-tool-math"
         >
           Math
         </button>

@@ -13,11 +13,13 @@
 import { NextResponse } from 'next/server'
 import { getLanguageRestrictionInstruction } from '@/lib/languageInstructions'
 
+const DEFAULT_REALTIME_MODEL = 'gpt-realtime-mini'
+
 /**
  * System prompt that configures the tutor's Socratic teaching style.
  * Instructs the model to guide with questions rather than give direct answers.
  */
-const SOCRATIC_TUTOR_INSTRUCTIONS = `You are a Socratic math tutor. Your role is to guide students to discover solutions themselves, not to give answers directly.
+const DEFAULT_SOCRATIC_TUTOR_INSTRUCTIONS = `You are a Socratic math tutor. Your role is to guide students to discover solutions themselves, not to give answers directly.
 
 Scope Control:
 Before responding, determine whether the user’s request is related to mathematics.
@@ -52,6 +54,11 @@ When a student shares a problem (by voice, text, or image), first understand wha
 
 You may receive periodic images of the student's whiteboard. Use them as context for what they're working on. Reference specific elements (equations, drawings) when giving guidance.`
 
+function getEnvOrDefault(value: string | undefined, fallback: string): string {
+  const normalized = value?.trim()
+  return normalized && normalized.length > 0 ? normalized : fallback
+}
+
 /**
  * POST /api/realtime/token
  *
@@ -81,8 +88,16 @@ export async function POST(request: Request) {
     // ignore parse errors; use default language
   }
 
+  const realtimeModel = getEnvOrDefault(
+    process.env.OPENAI_REALTIME_MODEL,
+    DEFAULT_REALTIME_MODEL
+  )
+  const baseInstructions = getEnvOrDefault(
+    process.env.OPENAI_SOCRATIC_TUTOR_INSTRUCTIONS,
+    DEFAULT_SOCRATIC_TUTOR_INSTRUCTIONS
+  )
   const languageRestriction = getLanguageRestrictionInstruction(language)
-  const instructions = `${SOCRATIC_TUTOR_INSTRUCTIONS}\n\n${languageRestriction}`
+  const instructions = `${baseInstructions}\n\n${languageRestriction}`
 
   /**
    * Session config sent to OpenAI. See TUTOR_DOCUMENTATION.md for why
@@ -90,7 +105,7 @@ export async function POST(request: Request) {
    */
   const sessionConfig = {
     type: 'realtime',
-    model: 'gpt-realtime-mini',
+    model: realtimeModel,
     instructions,
     output_modalities: ['audio'],
     audio: { output: { voice: 'marin' } },

@@ -51,14 +51,18 @@ This document outlines how to verify that all implemented features work correctl
 
 ---
 
-## 4. Session Controls (Pause, Mute, Stream Canvas)
+## 4. Session Controls (Pause, Mic Mute, Speaker Mute, Stream Canvas)
 
 | Test | Steps | Expected |
 |------|-------|----------|
-| Pause | Click Pause | Mic off; canvas streaming stops; "Resume" shown |
+| Pause immediate interrupt | While tutor is actively speaking, click Pause | Tutor audio stops immediately; in-flight response is cancelled |
+| Pause with no active response | Wait until tutor is idle, then click Pause | No user-facing error banner appears |
 | Resume | Click Resume | Mic on; canvas streaming resumes |
-| Mute | Click Mute | Mic off; canvas continues (if stream on) |
-| Unmute | Click Unmute | Mic on |
+| Mic mute | Click Mute | User mic is muted; tutor output still audible |
+| Mic unmute | Click Unmute | User mic is restored |
+| Speaker mute | Click Mute speaker | Tutor output audio is silent; mic behavior unchanged |
+| Speaker unmute | Click Unmute speaker | Tutor output audio is audible again |
+| Pause input lock | Click Pause, then try typing/uploading/sending | Text/file actions are blocked while paused |
 | Stream canvas off | Uncheck "Stream canvas" | No canvas sends (passive or active) |
 | Stream canvas on | Check "Stream canvas" | Canvas sends on interactions and debounced changes |
 | Pause + canvas | Pause with stream on, draw, wait 2.5s | No canvas sent |
@@ -78,13 +82,16 @@ This document outlines how to verify that all implemented features work correctl
 
 ---
 
-## 6. Chat History and Duplicates
+## 6. Chat Interface, History, and Duplicates
 
 | Test | Steps | Expected |
 |------|-------|----------|
-| No duplicate assistant messages | Have tutor respond multiple times | Each response appears once in chat history |
-| User messages | Send text, upload image | User entries show correctly |
-| Transcript live | While tutor speaks | Current transcript updates; collapses into final message |
+| Two-sided layout | Start session and exchange messages | User bubbles are right-aligned; assistant bubbles are left-aligned |
+| No duplicated latest bubble | Let assistant finish a reply | Final assistant bubble appears once (no duplicate streaming/final copy) |
+| No duplicate assistant messages | Have tutor respond multiple times | Each assistant response appears once |
+| Text/file user messages | Send text and upload image | User entries appear correctly in chat |
+| Voice user messages | Speak a short sentence and stop | Spoken user turn is handled in audio flow; transcript-in-chat is currently not implemented |
+| Transcript live | While tutor speaks | Current assistant transcript streams in chat and finalizes cleanly |
 
 ---
 
@@ -148,6 +155,7 @@ This document outlines how to verify that all implemented features work correctl
 | Send text + image | Upload, type message, send | Both sent; tutor responds with context |
 | Remove upload | Click "Remove" | Preview cleared |
 | Disabled during thinking | Send message, try FileUpload or TextInput while "Thinking" | Inputs disabled |
+| Disabled during pause | Pause session, try FileUpload or TextInput | Inputs are unavailable; paused helper message is shown |
 
 ---
 
@@ -158,6 +166,7 @@ This document outlines how to verify that all implemented features work correctl
 | Home page | `/` loads; demo/interactive elements work |
 | Board page | `/board` loads; drawing works |
 | Mobile layout | Resize to narrow width; tutor page usable |
+| Unified shell continuity | First load, start, end, start again | Same chat shell layout stays consistent; controls are integrated in top bar |
 | Keyboard | Tab through controls; Enter sends text |
 | Refresh during session | Refresh while connected; graceful cleanup (no errors) |
 
@@ -186,11 +195,16 @@ Use this checklist for a full manual pass:
 - [ ] Start/End session works
 - [ ] Chat history persists after disconnect; clears on new session
 - [ ] Avatar states: idle, listening, waiting, thinking, speaking
-- [ ] Pause/Resume stops and resumes canvas
-- [ ] Mute/Unmute affects mic only
+- [ ] Pause interrupts response immediately and resumes correctly
+- [ ] Pause when idle does not show false cancellation error
+- [ ] Mic mute/unmute affects user input only
+- [ ] Speaker mute/unmute affects tutor output only
 - [ ] Stream canvas toggle works
 - [ ] Language dropdown and English restriction
+- [ ] Two-sided chat layout is active
+- [ ] Latest assistant bubble is not duplicated
 - [ ] No duplicate assistant messages in chat
+- [ ] Spoken user turns are handled in audio flow (transcript in chat is TODO)
 - [ ] Canvas on speech start
 - [ ] Canvas on text send
 - [ ] Canvas on image send

@@ -44,9 +44,11 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
   const [isConnected, setIsConnected] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
+  const [isSpeakerMuted, setIsSpeakerMuted] = useState(false)
   const [transcript, setTranscript] = useState<string>('')
   const [chatHistory, setChatHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([])
   const transcriptRef = useRef<string>('')
+  const isResponseActiveRef = useRef(false)
   const pcRef = useRef<RTCPeerConnection | null>(null)
   const dcRef = useRef<RTCDataChannel | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -71,11 +73,18 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
     }
     audioTrackRef.current = null
     canvasItemIdRef.current = null
+    isResponseActiveRef.current = false
     setIsConnected(false)
     setIsPaused(false)
     setIsMuted(false)
+    setIsSpeakerMuted(false)
     setTranscript('')
     transcriptRef.current = ''
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+      audioRef.current.muted = false
+    }
     setState('idle')
   }, [])
 
@@ -100,6 +109,7 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
       // Hidden audio element for playing tutor's voice. Autoplay required for WebRTC.
       const audioEl = document.createElement('audio')
       audioEl.autoplay = true
+      audioEl.muted = isSpeakerMuted
       audioRef.current = audioEl
 
       // When OpenAI sends audio, attach it to our audio element
@@ -209,7 +219,7 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
       setState('idle')
       disconnect()
     }
-  }, [disconnect, onError])
+  }, [disconnect, onError, isSpeakerMuted])
 
   /**
    * Handles server-sent events from the Realtime API data channel.
@@ -231,10 +241,13 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
           break
         }
         case 'input_audio_buffer.speech_started':
+          // TODO: If we support user voice messages in chat later, wire user input
+          // transcription events here and append finalized transcripts as user turns.
           onSpeechStarted?.()
           setState('listening')
           break
         case 'response.created':
+          isResponseActiveRef.current = true
           setState('thinking')
           setTranscript('')
           transcriptRef.current = ''
@@ -256,6 +269,9 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
           if (content) {
             setChatHistory((prev) => [...prev, { role: 'assistant', content }])
           }
+          isResponseActiveRef.current = false
+          setTranscript('')
+          transcriptRef.current = ''
           setState('listening')
           break
         }
@@ -264,11 +280,19 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
           if (content) {
             setChatHistory((prev) => [...prev, { role: 'assistant', content }])
           }
+          isResponseActiveRef.current = false
+          setTranscript('')
+          transcriptRef.current = ''
           setState('listening')
           break
         }
         case 'error': {
           const rawMsg = (event as { error?: { message?: string } }).error?.message ?? 'Unknown error'
+          if (rawMsg.includes('Cancellation failed: no active response found')) {
+            isResponseActiveRef.current = false
+            break
+          }
+          isResponseActiveRef.current = false
           console.error('[Lemma Tutor] Session error:', rawMsg)
           logErrorToServer('session', rawMsg)
           onError?.('Something went wrong. Please try again.', rawMsg)
@@ -285,6 +309,7 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
    * Uses conversation.item.create (input_text) + response.create.
    */
   const sendText = useCallback((text: string) => {
+    if (isPaused) return
     const dc = dcRef.current
     if (!dc || dc.readyState !== 'open') return
 
@@ -301,13 +326,14 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
     )
     dc.send(JSON.stringify({ type: 'response.create' }))
     setState('thinking')
-  }, [])
+  }, [isPaused])
 
   /**
    * Sends an image to the tutor and triggers a response.
    * Realtime API expects data:image/{format};base64,{data} for input_image.
    */
   const sendImage = useCallback((base64Data: string, mimeType: string) => {
+    if (isPaused) return
     const dc = dcRef.current
     if (!dc || dc.readyState !== 'open') return
 
@@ -330,7 +356,7 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
     )
     dc.send(JSON.stringify({ type: 'response.create' }))
     setState('thinking')
-  }, [])
+  }, [isPaused])
 
   /**
    * Sends text and image together (e.g. "Help me with step 2" + problem image).
@@ -338,6 +364,7 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
    */
   const sendTextWithImage = useCallback(
     (text: string, base64Data: string, mimeType: string) => {
+      if (isPaused) return
       const dc = dcRef.current
       if (!dc || dc.readyState !== 'open') return
 
@@ -362,7 +389,7 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
       dc.send(JSON.stringify({ type: 'response.create' }))
       setState('thinking')
     },
-    []
+    [isPaused]
   )
 
   /**
@@ -370,6 +397,7 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
    * Uses replace strategy: deletes previous canvas item before adding new one.
    */
   const sendCanvasImage = useCallback((base64: string, mimeType: string = 'image/jpeg') => {
+    if (isPaused) return
     const dc = dcRef.current
     if (!dc || dc.readyState !== 'open') return
 
@@ -400,7 +428,7 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
         },
       })
     )
-  }, [])
+  }, [isPaused])
 
   const mute = useCallback(() => {
     setIsMuted(true)
@@ -417,6 +445,10 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
   const pause = useCallback(() => {
     setIsPaused(true)
     if (audioTrackRef.current) audioTrackRef.current.enabled = false
+    const dc = dcRef.current
+    if (dc && dc.readyState === 'open' && isResponseActiveRef.current) {
+      dc.send(JSON.stringify({ type: 'response.cancel' }))
+    }
   }, [])
 
   const resume = useCallback(() => {
@@ -425,6 +457,16 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
       audioTrackRef.current.enabled = true
     }
   }, [isMuted])
+
+  const muteSpeaker = useCallback(() => {
+    setIsSpeakerMuted(true)
+    if (audioRef.current) audioRef.current.muted = true
+  }, [])
+
+  const unmuteSpeaker = useCallback(() => {
+    setIsSpeakerMuted(false)
+    if (audioRef.current) audioRef.current.muted = false
+  }, [])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -436,6 +478,7 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
     isConnected,
     isPaused,
     isMuted,
+    isSpeakerMuted,
     transcript,
     chatHistory,
     connect,
@@ -448,5 +491,7 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
     unmute,
     pause,
     resume,
+    muteSpeaker,
+    unmuteSpeaker,
   }
 }
