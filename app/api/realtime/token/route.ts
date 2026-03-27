@@ -92,12 +92,12 @@ export async function POST(request: Request) {
     process.env.OPENAI_REALTIME_MODEL,
     DEFAULT_REALTIME_MODEL
   )
-  const baseInstructions = getEnvOrDefault(
-    process.env.OPENAI_SOCRATIC_TUTOR_INSTRUCTIONS,
-    DEFAULT_SOCRATIC_TUTOR_INSTRUCTIONS
-  )
+  // const baseInstructions = getEnvOrDefault(
+  //   process.env.OPENAI_SOCRATIC_TUTOR_INSTRUCTIONS,
+  //   DEFAULT_SOCRATIC_TUTOR_INSTRUCTIONS
+  // )
   const languageRestriction = getLanguageRestrictionInstruction(language)
-  const instructions = `${baseInstructions}\n\n${languageRestriction}`
+  const instructions = `${DEFAULT_SOCRATIC_TUTOR_INSTRUCTIONS}\n\n${languageRestriction}`
 
   /**
    * Session config sent to OpenAI. See TUTOR_DOCUMENTATION.md for why
