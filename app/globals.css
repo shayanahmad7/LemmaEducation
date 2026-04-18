@@ -116,6 +116,22 @@
     font-family: 'Inter', sans-serif;
   }
 
+  .tl-container,
+  .tl-container .tlui-layout,
+  .tl-container .tlui-button,
+  .tl-container .tlui-button__label,
+  .tl-container .tlui-input,
+  .tl-container .tlui-menu,
+  .tl-container .tlui-popover__content,
+  .tl-container .tlui-dialog__content,
+  .tl-container .tlui-kbd,
+  .tl-container .tlui-page-menu__name,
+  .tl-container .tlui-style-panel,
+  .tl-container .tlui-tooltip {
+    font-family: 'Inter', sans-serif;
+    letter-spacing: 0;
+  }
+
   .waitlist-input:focus {
     border-color: var(--accent);
     box-shadow:

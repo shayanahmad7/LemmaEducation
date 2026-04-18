@@ -12,7 +12,7 @@
 
 'use client'
 
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo, type ReactNode, type SVGProps } from 'react'
 // @ts-expect-error - Editor is exported at runtime but TypeScript definitions may be incomplete
 import type { Editor } from 'tldraw'
 import TutorChatWindow from '@/components/TutorChatWindow'
@@ -24,6 +24,117 @@ import { useRealtimeTutor } from '@/hooks/useRealtimeTutor'
 import { useCanvasChangeDetection } from '@/hooks/useCanvasChangeDetection'
 import Link from 'next/link'
 
+function ControlButton({
+  label,
+  onClick,
+  children,
+  active = false,
+  disabled = false,
+  tone = 'default',
+}: {
+  label: string
+  onClick?: () => void
+  children: ReactNode
+  active?: boolean
+  disabled?: boolean
+  tone?: 'default' | 'danger'
+}) {
+  const baseClasses =
+    'inline-flex h-11 w-11 items-center justify-center rounded-full border transition-all duration-200'
+  const stateClasses = disabled
+    ? 'cursor-not-allowed border-[#C7D4CF] bg-white/45 text-[#93A49F]'
+    : tone === 'danger'
+    ? 'border-[#D8B8B1] bg-[#FCF2F0] text-[#8B3A2E] hover:border-[#B45242] hover:bg-[#F7E5E1]'
+    : active
+    ? 'border-[#16423C] bg-[#16423C] text-white shadow-[0_18px_45px_-22px_rgba(22,66,60,0.75)]'
+    : 'border-[#C9D6D1] bg-white/88 text-[#3F524C] hover:-translate-y-0.5 hover:border-[#16423C] hover:text-[#16423C] hover:shadow-[0_16px_38px_-24px_rgba(15,41,34,0.38)]'
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className={`${baseClasses} ${stateClasses}`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function StatusIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden {...props}>
+      <circle cx="12" cy="12" r="12" />
+    </svg>
+  )
+}
+
+function PauseIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9} d="M9 6v12M15 6v12" />
+    </svg>
+  )
+}
+
+function PlayIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden {...props}>
+      <path d="M8 6.5c0-1.05 1.15-1.68 2.02-1.1l8.08 5.5a1.33 1.33 0 010 2.2l-8.08 5.5A1.33 1.33 0 018 17.5v-11z" />
+    </svg>
+  )
+}
+
+function MicrophoneIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9} d="M12 4a3 3 0 00-3 3v5a3 3 0 006 0V7a3 3 0 00-3-3z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9} d="M6.5 11.5a5.5 5.5 0 0011 0M12 17v3M8.5 20h7" />
+    </svg>
+  )
+}
+
+function MicrophoneOffIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9} d="M15 9.5V7a3 3 0 00-5.66-1.4" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9} d="M9 9.25V12a3 3 0 004.65 2.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9} d="M6.5 11.5a5.49 5.49 0 003.3 4.94M12 17v3M8.5 20h7" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9} d="M4 4l16 16" />
+    </svg>
+  )
+}
+
+function SpeakerIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9} d="M11 6L7.7 9H5a1 1 0 00-1 1v4a1 1 0 001 1h2.7L11 18a1 1 0 001.68-.73V6.73A1 1 0 0011 6z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9} d="M16 9.5a4.5 4.5 0 010 5" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9} d="M18.5 7a8 8 0 010 10" />
+    </svg>
+  )
+}
+
+function SpeakerOffIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9} d="M11 6L7.7 9H5a1 1 0 00-1 1v4a1 1 0 001 1h2.7L11 18a1 1 0 001.68-.73V6.73A1 1 0 0011 6z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9} d="M15 9.5a4.48 4.48 0 011.44 2.31" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9} d="M4 4l16 16" />
+    </svg>
+  )
+}
+
+function EndIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.9} d="M7 7l10 10M17 7L7 17" />
+    </svg>
+  )
+}
+
 export default function TutorPage() {
   const [error, setError] = useState<string | null>(null)
   const [streamCanvas, setStreamCanvas] = useState(true)
@@ -31,6 +142,7 @@ export default function TutorPage() {
   const [editor, setEditor] = useState<Editor | null>(null)
   const [isTutorialOpen, setIsTutorialOpen] = useState(false)
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
+  const [isStartingSession, setIsStartingSession] = useState(false)
   const embeddedBoardRef = useRef<EmbeddedBoardRef>(null)
   const sendCanvasToTutorRef = useRef<() => Promise<void>>(() => Promise.resolve())
   const lastSentCanvasHashRef = useRef<string | null>(null)
@@ -101,6 +213,12 @@ export default function TutorPage() {
     if (!isConnected) lastSentCanvasHashRef.current = null
   }, [isConnected])
 
+  useEffect(() => {
+    if (isConnected || (!isConnected && state === 'idle')) {
+      setIsStartingSession(false)
+    }
+  }, [isConnected, state])
+
   useCanvasChangeDetection(editor, () => {
     void sendCanvasToTutor(false)
   }, {
@@ -139,6 +257,12 @@ export default function TutorPage() {
   }
 
   const clearUploadedImage = () => setUploadedImage(null)
+  const handleStartTutoring = async () => {
+    if (isStartingSession || isConnected) return
+    setError(null)
+    setIsStartingSession(true)
+    await connect({ language })
+  }
   const openTutorial = () => {
     setTutorialStepIndex(0)
     setIsTutorialOpen(true)
@@ -253,239 +377,225 @@ export default function TutorPage() {
         </div>
       </nav>
 
-      <main className="flex-1 flex flex-col md:flex-row min-h-0 overflow-y-auto md:overflow-hidden">
-        {/* Tutor panel */}
-        <div className="flex flex-col w-full md:w-[45%] md:min-w-0 p-4 md:p-6 min-h-0">
-          <div className="w-full h-full bg-white/60 border border-[#D1DBD7] rounded-xl overflow-hidden flex flex-col min-h-[500px]">
-            <div className="px-4 py-3 border-b border-[#E6ECE9] bg-white/70 flex flex-col gap-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`w-2.5 h-2.5 rounded-full ${
-                      !isConnected
-                        ? 'bg-[#A3B8B2]'
-                        : isPaused
-                        ? 'bg-[#5C7069]'
-                        : state === 'speaking'
-                        ? 'bg-[#16423C] animate-pulse'
-                        : state === 'thinking'
-                        ? 'bg-[#3F524C] animate-pulse'
-                        : 'bg-[#16423C]'
-                    }`}
-                  />
-                  <span className="text-xs uppercase tracking-wider text-[#5C7069]">{statusLabel}</span>
-                </div>
-                {!isConnected ? (
-                  <div className="flex flex-wrap justify-end items-center gap-2">
-                    <button
-                      onClick={() => {
-                        setError(null)
-                        connect({ language })
-                      }}
-                      className="px-4 py-2 bg-[#16423C] text-[#F2F5F4] rounded-sm hover:bg-[#0A2621] transition-colors text-sm font-medium"
-                      data-tutorial-id="start-tutoring"
-                    >
-                      Start tutoring
-                    </button>
-
-                    {showTutorialPreSessionControls && (
-                      <div
-                        className="flex flex-wrap justify-end gap-2 opacity-95"
-                        data-tutorial-id="session-controls"
-                      >
-                        <button
-                          type="button"
-                          disabled
-                          className="px-3 py-1.5 rounded-sm border border-[#A3B8B2] text-[#7F908B] text-xs cursor-not-allowed"
-                        >
-                          Pause
-                        </button>
-                        <button
-                          type="button"
-                          disabled
-                          className="px-3 py-1.5 rounded-sm border border-[#A3B8B2] text-[#7F908B] text-xs cursor-not-allowed"
-                        >
-                          Mic off
-                        </button>
-                        <button
-                          type="button"
-                          disabled
-                          className="px-3 py-1.5 rounded-sm border border-[#A3B8B2] text-[#7F908B] text-xs cursor-not-allowed"
-                        >
-                          Sound off
-                        </button>
-                        <button
-                          type="button"
-                          disabled
-                          className="px-3 py-1.5 rounded-sm border border-[#A3B8B2] text-[#7F908B] text-xs cursor-not-allowed"
-                        >
-                          End
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap justify-end gap-2" data-tutorial-id="session-controls">
-                    <button
-                      onClick={isPaused ? resume : pause}
-                      className={`px-3 py-1.5 rounded-sm transition-colors text-xs ${
-                        isPaused
-                          ? 'bg-[#16423C] text-white border border-[#16423C]'
-                          : 'border border-[#A3B8B2] text-[#3F524C] hover:border-[#16423C] hover:text-[#16423C]'
-                      }`}
-                    >
-                      {isPaused ? 'Resume' : 'Pause'}
-                    </button>
-                    <button
-                      onClick={isMuted ? unmute : mute}
-                      className={`px-3 py-1.5 rounded-sm transition-colors text-xs ${
-                        isMuted
-                          ? 'bg-[#16423C] text-white border border-[#16423C]'
-                          : 'border border-[#A3B8B2] text-[#3F524C] hover:border-[#16423C] hover:text-[#16423C]'
-                      }`}
-                    >
-                      {isMuted ? 'Mic on' : 'Mic off'}
-                    </button>
-                    <button
-                      onClick={isSpeakerMuted ? unmuteSpeaker : muteSpeaker}
-                      className={`px-3 py-1.5 rounded-sm transition-colors text-xs ${
-                        isSpeakerMuted
-                          ? 'bg-[#16423C] text-white border border-[#16423C]'
-                          : 'border border-[#A3B8B2] text-[#3F524C] hover:border-[#16423C] hover:text-[#16423C]'
-                      }`}
-                    >
-                      {isSpeakerMuted ? 'Sound on' : 'Sound off'}
-                    </button>
-                    <button
-                      onClick={disconnect}
-                      className="px-3 py-1.5 border border-[#A3B8B2] text-[#3F524C] rounded-sm hover:border-[#16423C] hover:text-[#16423C] transition-colors text-xs"
-                    >
-                      End
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {showCanvasStreamControl && (
-                <label
-                  className={`flex items-center gap-2 text-xs text-[#3F524C] ${
-                    isConnected ? 'cursor-pointer' : 'cursor-not-allowed opacity-80'
-                  }`}
-                  data-tutorial-id="stream-canvas-toggle"
-                >
-                  <input
-                    type="checkbox"
-                    checked={streamCanvas}
-                    onChange={(e) => setStreamCanvas(e.target.checked)}
-                    disabled={!isConnected}
-                    className="sr-only"
-                  />
-                  <span
-                    className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors ${
-                      streamCanvas
-                        ? 'bg-[#16423C] border-[#16423C]'
-                        : 'border-[#A3B8B2] bg-white'
-                    }`}
-                    aria-hidden
-                  >
-                    {streamCanvas && (
-                      <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </span>
-                  <span>Stream canvas</span>
-                </label>
-              )}
+      <main className="flex-1 min-h-0 overflow-y-auto md:overflow-hidden">
+        <div className="relative h-full px-4 py-4 md:px-6 md:py-6">
+          <div className="relative mx-auto flex h-full w-full max-w-[1600px] flex-col gap-4 md:gap-0">
+            <div
+              className="flex min-h-[420px] flex-1 flex-col md:pr-[24.5rem] lg:pr-[25.5rem]"
+              data-tutorial-id="tutor-board-shell"
+            >
+              <EmbeddedBoard
+                ref={embeddedBoardRef}
+                className="h-full min-h-[420px] flex-1 rounded-[28px] border-[#D8E4DF] bg-[#FCFDFC] shadow-[0_34px_90px_-58px_rgba(15,41,34,0.52)]"
+                onEditorReady={setEditor}
+              />
             </div>
 
-            {error && (
-              <div className="mx-4 mt-3 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-                {error}
-              </div>
-            )}
+            <aside className="flex w-full flex-col md:absolute md:bottom-5 md:right-5 md:top-5 md:w-[23rem] lg:w-[24rem]">
+              <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-[30px] border border-white/70 bg-[rgba(248,251,249,0.88)] shadow-[0_28px_80px_-50px_rgba(15,41,34,0.7)] backdrop-blur-xl">
+                <div className="border-b border-[#DCE7E2] bg-[linear-gradient(180deg,rgba(255,255,255,0.86),rgba(247,250,248,0.72))] px-5 py-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <StatusIcon
+                          className={`h-2.5 w-2.5 ${
+                            !isConnected
+                              ? 'text-[#A3B8B2]'
+                              : isPaused
+                              ? 'text-[#5C7069]'
+                              : state === 'speaking'
+                              ? 'animate-pulse text-[#16423C]'
+                              : state === 'thinking'
+                              ? 'animate-pulse text-[#3F524C]'
+                              : 'text-[#16423C]'
+                          }`}
+                        />
+                        <span className="text-[11px] uppercase tracking-[0.28em] text-[#5C7069]">{statusLabel}</span>
+                      </div>
+                      <div>
+                        <h1 className="text-[1.7rem] font-light leading-none tracking-[-0.03em] text-[#0F2922]">
+                          AI tutor
+                        </h1>
+                      </div>
+                    </div>
 
-            <TutorChatWindow
-              messages={chatHistory}
-              currentTranscript={isConnected ? transcript : ''}
-              isAssistantStreaming={showAssistantStreaming}
-              paused={isPaused}
-              className="m-4 mt-3 flex-1 min-h-0"
-            />
+                    {isConnected ? (
+                      <div className="flex flex-wrap justify-end gap-2" data-tutorial-id="session-controls">
+                        <ControlButton
+                          label={isPaused ? 'Resume session' : 'Pause session'}
+                          onClick={isPaused ? resume : pause}
+                          active={isPaused}
+                        >
+                          {isPaused ? <PlayIcon className="h-[18px] w-[18px]" /> : <PauseIcon className="h-[18px] w-[18px]" />}
+                        </ControlButton>
+                        <ControlButton
+                          label={isMuted ? 'Turn microphone on' : 'Mute microphone'}
+                          onClick={isMuted ? unmute : mute}
+                          active={isMuted}
+                        >
+                          {isMuted ? (
+                            <MicrophoneOffIcon className="h-[18px] w-[18px]" />
+                          ) : (
+                            <MicrophoneIcon className="h-[18px] w-[18px]" />
+                          )}
+                        </ControlButton>
+                        <ControlButton
+                          label={isSpeakerMuted ? 'Turn speaker on' : 'Mute speaker'}
+                          onClick={isSpeakerMuted ? unmuteSpeaker : muteSpeaker}
+                          active={isSpeakerMuted}
+                        >
+                          {isSpeakerMuted ? (
+                            <SpeakerOffIcon className="h-[18px] w-[18px]" />
+                          ) : (
+                            <SpeakerIcon className="h-[18px] w-[18px]" />
+                          )}
+                        </ControlButton>
+                        <ControlButton label="End session" onClick={disconnect} tone="danger">
+                          <EndIcon className="h-[18px] w-[18px]" />
+                        </ControlButton>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-end gap-3">
+                        <button
+                          onClick={() => {
+                            void handleStartTutoring()
+                          }}
+                          disabled={isStartingSession}
+                          className={`rounded-full px-4 py-2.5 text-sm font-medium text-[#F2F5F4] shadow-[0_20px_45px_-24px_rgba(22,66,60,0.75)] transition-all ${
+                            isStartingSession
+                              ? 'cursor-not-allowed bg-[#A7B7B1] shadow-none'
+                              : 'bg-[#16423C] hover:-translate-y-0.5 hover:bg-[#0A2621]'
+                          }`}
+                          data-tutorial-id="start-tutoring"
+                        >
+                          {isStartingSession ? 'Starting...' : 'Start tutoring'}
+                        </button>
 
-            <div className="px-4 pb-4">
-              {!isConnected ? (
-                <p className="text-sm text-[#5C7069]">
-                  Start a session to send text, voice, or image prompts. Previous chat stays visible until you start a new session.
-                </p>
-              ) : isPaused ? (
-                <div className="w-full rounded-lg border border-[#E6ECE9] bg-white/60 p-4 text-sm text-[#5C7069]">
-                  Session is paused. Resume to send text, voice, or files.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex flex-wrap gap-3 items-center">
-                    <FileUpload
-                      onUpload={handleUpload}
-                      onError={setError}
-                      disabled={state === 'thinking' || isPaused}
-                    />
+                        {showTutorialPreSessionControls && (
+                          <div className="flex flex-wrap justify-end gap-2 opacity-95" data-tutorial-id="session-controls">
+                            <ControlButton label="Pause session" disabled>
+                              <PauseIcon className="h-[18px] w-[18px]" />
+                            </ControlButton>
+                            <ControlButton label="Mute microphone" disabled>
+                              <MicrophoneOffIcon className="h-[18px] w-[18px]" />
+                            </ControlButton>
+                            <ControlButton label="Mute speaker" disabled>
+                              <SpeakerOffIcon className="h-[18px] w-[18px]" />
+                            </ControlButton>
+                            <ControlButton label="End session" disabled tone="danger">
+                              <EndIcon className="h-[18px] w-[18px]" />
+                            </ControlButton>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  {uploadedImage && (
-                    <div className="flex flex-col gap-2 p-3 bg-white/60 rounded-lg border border-[#E6ECE9]">
-                      <div className="flex items-center gap-2">
-                        <div className="w-12 h-12 rounded overflow-hidden bg-gray-100 flex-shrink-0">
-                          <img
-                            src={`data:${uploadedImage.mimeType};base64,${uploadedImage.base64}`}
-                            alt="Uploaded problem"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <span className="text-sm text-[#3F524C] flex-1">
-                          Problem ready. Add a message below or get help now.
-                        </span>
-                        <button
-                          type="button"
-                          onClick={clearUploadedImage}
-                          className="text-[#5C7069] hover:text-[#16423C] text-xs"
-                        >
-                          Remove
-                        </button>
+                  {showCanvasStreamControl && (
+                    <label
+                      className={`mt-4 flex items-center justify-between gap-4 rounded-full border border-[#D5E1DD] bg-white/68 px-4 py-2.5 text-sm text-[#3F524C] ${
+                        isConnected ? 'cursor-pointer' : 'cursor-not-allowed opacity-80'
+                      }`}
+                      data-tutorial-id="stream-canvas-toggle"
+                    >
+                      <div>
+                        <p className="font-medium text-[#203A34]">Stream canvas</p>
+                        <p className="text-xs text-[#6A7E78]">Share live board updates with the tutor as you work.</p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={handleSendImageOnly}
-                        disabled={state === 'thinking' || isPaused}
-                        className="self-start px-3 py-1.5 text-xs bg-[#16423C] text-white rounded hover:bg-[#0A2621] disabled:opacity-50"
-                      >
-                        Get help with this problem
-                      </button>
+                      <span className="relative inline-flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={streamCanvas}
+                          onChange={(e) => setStreamCanvas(e.target.checked)}
+                          disabled={!isConnected}
+                          className="peer sr-only"
+                        />
+                        <span className="h-7 w-12 rounded-full bg-[#D5E1DD] transition-colors peer-checked:bg-[#16423C]" />
+                        <span className="absolute left-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
+                      </span>
+                    </label>
+                  )}
+                </div>
+
+                <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-4">
+                  {error && (
+                    <div className="mb-3 rounded-[22px] border border-red-200 bg-red-50/95 px-4 py-3 text-sm text-red-700">
+                      {error}
                     </div>
                   )}
 
-                  <TextInput
-                    onSend={handleTextSend}
-                    disabled={state === 'thinking' || isPaused}
-                    placeholder="Type equations, steps, or clarifications..."
-                    className="w-full"
+                  <TutorChatWindow
+                    messages={chatHistory}
+                    currentTranscript={isConnected ? transcript : ''}
+                    isAssistantStreaming={showAssistantStreaming}
+                    paused={isPaused}
+                    className="min-h-0 flex-1"
                   />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
 
-        {/* Board panel */}
-        <div
-          className="flex flex-col w-full md:flex-1 min-h-[400px] md:min-h-0 p-4 md:p-6"
-          data-tutorial-id="tutor-board-shell"
-        >
-          <EmbeddedBoard
-            ref={embeddedBoardRef}
-            className="flex-1 min-h-0"
-            onEditorReady={setEditor}
-          />
+                  <div className="mt-3 space-y-3">
+                    {!isConnected ? (
+                      <div className="rounded-[22px] border border-[#DCE7E2] bg-white/72 px-4 py-4 text-sm leading-relaxed text-[#5C7069]">
+                        Start a session to speak, type, or upload a problem. Your board stays open while the tutor sits here on the edge.
+                      </div>
+                    ) : isPaused ? (
+                      <div className="rounded-[22px] border border-[#DCE7E2] bg-white/72 px-4 py-4 text-sm leading-relaxed text-[#5C7069]">
+                        Session is paused. Resume when you want to send text, voice, or images again.
+                      </div>
+                    ) : (
+                      <>
+                        {uploadedImage && (
+                          <div className="flex flex-col gap-3 rounded-[22px] border border-[#DCE7E2] bg-white/76 p-3.5">
+                            <div className="flex items-center gap-3">
+                              <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100">
+                                <img
+                                  src={`data:${uploadedImage.mimeType};base64,${uploadedImage.base64}`}
+                                  alt="Uploaded problem"
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+                              <span className="flex-1 text-sm leading-relaxed text-[#3F524C]">
+                                Problem ready. Add context below or send it directly for help.
+                              </span>
+                              <button
+                                type="button"
+                                onClick={clearUploadedImage}
+                                className="text-xs text-[#5C7069] transition-colors hover:text-[#16423C]"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleSendImageOnly}
+                              disabled={state === 'thinking' || isPaused}
+                              className="self-start rounded-full bg-[#16423C] px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-[#0A2621] disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Get help with this problem
+                            </button>
+                          </div>
+                        )}
+
+                        <TextInput
+                          onSend={handleTextSend}
+                          disabled={state === 'thinking' || isPaused}
+                          placeholder="Ask a question or add context..."
+                          className="w-full"
+                          leadingAccessory={
+                            <FileUpload
+                              onUpload={handleUpload}
+                              onError={setError}
+                              disabled={state === 'thinking' || isPaused}
+                              variant="icon"
+                            />
+                          }
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
         </div>
       </main>
       <GuidedTutorialOverlay
