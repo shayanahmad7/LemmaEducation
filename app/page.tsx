@@ -4,17 +4,52 @@ import { useState } from 'react'
 import CanvasBackground from '@/components/CanvasBackground'
 import DemoSection from '@/components/DemoSection'
 
+const roleOptions = [
+  'Student',
+  'Parent',
+  'Teacher',
+  'Tutor',
+  'Researcher',
+  'School leader',
+  'Other',
+]
+
+type WaitlistForm = {
+  email: string
+  roleSelection: string
+  customRole: string
+  goals: string
+  willingToPay: boolean
+}
+
 export default function Home() {
-  const [email, setEmail] = useState('')
+  const [formData, setFormData] = useState<WaitlistForm>({
+    email: '',
+    roleSelection: '',
+    customRole: '',
+    goals: '',
+    willingToPay: false,
+  })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState<string | null>(null)
 
+  const updateField = <K extends keyof WaitlistForm>(field: K, value: WaitlistForm[K]) => {
+    setFormData((current) => ({
+      ...current,
+      [field]: value,
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    const trimmedEmail = formData.email.trim()
+    const trimmedCustomRole = formData.customRole.trim()
+    const trimmedGoals = formData.goals.trim()
+    const trimmedRoleSelection = formData.roleSelection.trim()
 
     // Client-side validation
-    if (!email.trim()) {
+    if (!trimmedEmail) {
       setStatus('error')
       setMessage('Please enter your email.')
       return
@@ -22,9 +57,21 @@ export default function Home() {
 
     // Basic email format check on client
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email.trim())) {
+    if (!emailRegex.test(trimmedEmail)) {
       setStatus('error')
       setMessage('Please enter a valid email address.')
+      return
+    }
+
+    if (!trimmedRoleSelection) {
+      setStatus('error')
+      setMessage('Please choose the option that best describes you.')
+      return
+    }
+
+    if (!trimmedGoals) {
+      setStatus('error')
+      setMessage('Please tell us how you would want to use Lemma.')
       return
     }
 
@@ -38,7 +85,13 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({
+          email: trimmedEmail,
+          roleSelection: trimmedRoleSelection,
+          customRole: trimmedCustomRole,
+          goals: trimmedGoals,
+          willingToPay: formData.willingToPay,
+        }),
       })
 
       // Handle network errors
@@ -60,8 +113,14 @@ export default function Home() {
 
       // Success - show message (could be new signup or already on waitlist)
       setStatus('success')
-      setMessage(data.message || 'You\'re on the waitlist. We\'ll be in touch soon.')
-      setEmail('')
+      setMessage(data.message || 'You\'re on the list. We’ll follow up when we start opening access.')
+      setFormData({
+        email: '',
+        roleSelection: '',
+        customRole: '',
+        goals: '',
+        willingToPay: false,
+      })
     } catch (err) {
       setStatus('error')
       
@@ -111,53 +170,15 @@ export default function Home() {
           Traditional tools just generate answers. We built an interface that asks you to verbalize your thinking while you solve, capturing what you actually understand.
         </p>
 
-        {/* Waitlist */}
-        <form
-          id="waitlist"
-          onSubmit={handleSubmit}
-          className="fade-in-up delay-300 mt-16 w-full max-w-md mx-auto flex flex-col md:flex-row gap-4 items-end md:items-center"
+        <a
+          href="#waitlist"
+          className="waitlist-ui-text fade-in-up delay-300 mt-16 inline-flex items-center justify-center rounded-full border border-[#143C36] bg-[#12352F] px-7 py-3.5 text-[0.95rem] font-light text-[#F2F5F4] shadow-[0_12px_28px_-20px_rgba(15,41,34,0.55)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#16423C]"
         >
-          <div className="flex-grow w-full relative">
-            <label htmlFor="email" className="sr-only">
-              Email Address
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              placeholder="Enter your email"
-              className="minimal-input w-full text-lg font-light"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={isSubmitting}
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full md:w-auto px-8 py-3 bg-[#16423C] text-[#F2F5F4] hover:bg-[#0A2621] disabled:opacity-70 disabled:cursor-not-allowed transition-colors duration-300 font-medium text-sm rounded-sm shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
-          >
-            {isSubmitting ? 'Joining...' : 'Join Waitlist'}
-          </button>
-        </form>
-
-        {message && (
-          <p
-            className={`mt-4 text-sm fade-in-up ${
-              status === 'success' 
-                ? 'text-[#16423C]' 
-                : 'text-red-600'
-            }`}
-          >
-            {message}
-          </p>
-        )}
+          Join the waitlist
+        </a>
 
       </main>
 
-      {/* The Vision / Manifesto Section */}
-      {/* Added backdrop-blur to make text readable over the canvas animation */}
       <section className="w-full bg-[#E6ECE9]/80 backdrop-blur-md py-24 px-6 md:px-12 border-t border-[#D1DBD7] relative z-10">
         <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-16 md:gap-24">
           
@@ -187,6 +208,134 @@ export default function Home() {
 
       {/* Demo Section */}
       <DemoSection />
+
+      <section id="waitlist" className="relative z-10 bg-[#DDE7E3] px-6 py-16 md:px-12">
+        <div className="mx-auto max-w-[58rem] overflow-hidden rounded-[1.35rem] border border-[#C4D1CC] bg-[#E9EFEC] shadow-[0_18px_42px_-34px_rgba(15,41,34,0.28)]">
+          <div className="grid gap-0 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="border-b border-[#D1DBD7] px-6 py-7 md:px-8 lg:border-b-0 lg:border-r lg:py-8">
+              <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.28em] text-[#5C7069]">
+                Waitlist
+              </p>
+              <h2 className="serif text-[1.85rem] leading-tight text-[#0F2922] md:text-[2.25rem]">
+                Get on the list
+                <br />
+                before we open up.
+              </h2>
+              <p className="mt-4 max-w-md text-[0.97rem] font-light leading-relaxed text-[#3F524C]">
+                Tell us who you are and how you would use Lemma.
+              </p>
+            </div>
+
+            <div className="px-6 py-7 md:px-8 lg:py-8">
+              <form onSubmit={handleSubmit} className="space-y-3.5">
+                <div className="waitlist-field">
+                  <label htmlFor="email" className="sr-only">
+                    Email address
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="Email address"
+                    className="waitlist-input"
+                    value={formData.email}
+                    onChange={(e) => updateField('email', e.target.value)}
+                    disabled={isSubmitting}
+                    required
+                  />
+                </div>
+
+                <div className="waitlist-field">
+                  <label htmlFor="role" className="sr-only">
+                    Role
+                  </label>
+                  <select
+                    id="role"
+                    name="role"
+                    className="waitlist-input"
+                    value={formData.roleSelection}
+                    onChange={(e) => updateField('roleSelection', e.target.value)}
+                    disabled={isSubmitting}
+                    required
+                  >
+                    <option value="">I’m a student, parent, teacher, tutor...</option>
+                    {roleOptions.map((role) => (
+                      <option key={role} value={role}>
+                        {role}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="waitlist-field">
+                  <label htmlFor="customRole" className="sr-only">
+                    Custom role
+                  </label>
+                  <input
+                    type="text"
+                    id="customRole"
+                    name="customRole"
+                    placeholder="Your role, background, or organization"
+                    className="waitlist-input"
+                    value={formData.customRole}
+                    onChange={(e) => updateField('customRole', e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+
+                <div className="waitlist-field">
+                  <label htmlFor="goals" className="sr-only">
+                    How would you use Lemma
+                  </label>
+                  <textarea
+                    id="goals"
+                    name="goals"
+                    placeholder="What would you want to use Lemma for, or what feedback would you have for us?"
+                    className="waitlist-input min-h-[128px] resize-y"
+                    value={formData.goals}
+                    onChange={(e) => updateField('goals', e.target.value)}
+                    disabled={isSubmitting}
+                    required
+                  />
+                </div>
+
+                <label className="waitlist-ui-text flex items-center gap-3 rounded-[1rem] border border-[#B8C8C2] bg-[#E6EEEA] px-4 py-3 text-left text-[#0F2922]">
+                  <input
+                    type="checkbox"
+                    checked={formData.willingToPay}
+                    onChange={(e) => updateField('willingToPay', e.target.checked)}
+                    disabled={isSubmitting}
+                    className="h-4.5 w-4.5 rounded border-[#A3B8B2] text-[#16423C] focus:ring-[#16423C]"
+                  />
+                  <span className="text-[0.95rem] font-light text-[#0F2922]">I’d be open to paying for it.</span>
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="waitlist-ui-text w-full rounded-[1rem] border border-[#143C36] bg-[#12352F] px-5 py-3.5 text-[0.95rem] font-light text-[#F2F5F4] shadow-[0_14px_32px_-22px_rgba(15,41,34,0.6)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#16423C] disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isSubmitting ? 'Saving your spot...' : 'Join waitlist'}
+                </button>
+
+                <p className="waitlist-ui-text px-1 text-[0.82rem] font-light text-[#5C7069]">
+                  Use a real email and a short, specific note. We review early access requests by hand.
+                </p>
+
+                {message && (
+                  <p
+                    className={`waitlist-ui-text px-1 text-sm ${
+                      status === 'success' ? 'text-[#16423C]' : 'text-red-600'
+                    }`}
+                  >
+                    {message}
+                  </p>
+                )}
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Footer */}
       <footer className="w-full px-6 py-12 md:px-12 border-t border-[#D1DBD7] bg-[#F2F5F4] relative z-10">

@@ -47,6 +47,24 @@ npm run build
 npm start
 ```
 
+### Waitlist Schema
+
+The homepage waitlist now collects more than just an email address. New signups can store:
+
+- email
+- role selection
+- custom role / background
+- goals or feedback
+- willingness to pay
+
+If you are setting up a fresh environment or updating an older database schema, run:
+
+```bash
+npm run migrate:waitlist
+```
+
+This updates the `public.waitlist_signups` table with the extra waitlist fields used by the local form and API.
+
 ## Project Structure
 
 ```
@@ -57,6 +75,8 @@ npm start
 ├── components/
 │   ├── CanvasBackground.tsx  # Animated background
 │   └── DemoSection.tsx      # Interactive demo
+├── scripts/
+│   └── migrate-waitlist-schema.mjs  # Updates waitlist DB columns
 └── public/              # Static assets
 ```
 

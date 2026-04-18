@@ -74,6 +74,71 @@
     color: #8CA39D;
   }
 
+  .waitlist-field {
+    position: relative;
+  }
+
+  .waitlist-input {
+    width: 100%;
+    border-radius: 0.95rem;
+    border: 1px solid #b8c8c2;
+    background: #eef3f0;
+    box-shadow: none;
+    color: var(--text-main);
+    padding: 0.88rem 1rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    outline: none;
+    transition:
+      border-color 0.25s ease,
+      box-shadow 0.25s ease,
+      transform 0.25s ease;
+    appearance: none;
+    font-family: 'Inter', sans-serif;
+    font-weight: 300;
+    letter-spacing: 0;
+  }
+
+  .waitlist-ui-text {
+    font-family: 'Inter', sans-serif;
+    letter-spacing: 0;
+  }
+
+  input.waitlist-input,
+  textarea.waitlist-input,
+  select.waitlist-input,
+  button {
+    font-family: 'Inter', sans-serif;
+    font-weight: 300;
+  }
+
+  a[href='#waitlist'] {
+    font-family: 'Inter', sans-serif;
+  }
+
+  .waitlist-input:focus {
+    border-color: var(--accent);
+    box-shadow:
+      0 0 0 3px rgba(22, 66, 60, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .waitlist-input::placeholder {
+    color: #71847d;
+  }
+
+  select.waitlist-input {
+    background-image:
+      linear-gradient(45deg, transparent 50%, #16423c 50%),
+      linear-gradient(135deg, #16423c 50%, transparent 50%);
+    background-position:
+      calc(100% - 24px) calc(50% - 3px),
+      calc(100% - 18px) calc(50% - 3px);
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+    padding-right: 3.5rem;
+  }
+  
   /* --- DEMO STYLES --- */
   .demo-container {
     position: relative;
