@@ -13,15 +13,18 @@
 import { NextResponse } from 'next/server'
 import { getLanguageRestrictionInstruction } from '@/lib/languageInstructions'
 
-const DEFAULT_REALTIME_MODEL = 'gpt-realtime-mini'
-
 function getEnvOrDefault(value: string | undefined, fallback: string): string {
   const normalized = value?.trim()
   return normalized && normalized.length > 0 ? normalized : fallback
 }
 
-function getRequiredInstructionEnv(value: string | undefined): string | null {
+function getRequiredEnv(value: string | undefined): string | null {
   const normalized = value?.trim()
+  return normalized && normalized.length > 0 ? normalized : null
+}
+
+function getRequiredInstructionEnv(value: string | undefined): string | null {
+  const normalized = getRequiredEnv(value)
   if (!normalized) return null
   return normalized.replace(/\\n/g, '\n')
 }
@@ -41,6 +44,14 @@ export async function POST(request: Request) {
   if (!apiKey) {
     return NextResponse.json(
       { error: 'OPENAI_API_KEY is not configured' },
+      { status: 500 }
+    )
+  }
+
+  const realtimeModel = getRequiredEnv(process.env.OPENAI_REALTIME_MODEL)
+  if (!realtimeModel) {
+    return NextResponse.json(
+      { error: 'OPENAI_REALTIME_MODEL is not configured' },
       { status: 500 }
     )
   }
@@ -65,10 +76,6 @@ export async function POST(request: Request) {
     // ignore parse errors; use default language
   }
 
-  const realtimeModel = getEnvOrDefault(
-    process.env.OPENAI_REALTIME_MODEL,
-    DEFAULT_REALTIME_MODEL
-  )
   const languageRestriction = getLanguageRestrictionInstruction(language)
   const instructions = `${baseInstructions}\n\n${languageRestriction}`
 
