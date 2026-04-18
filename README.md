@@ -75,6 +75,14 @@ This updates the `public.waitlist_signups` table with the extra waitlist fields 
 ├── components/
 │   ├── CanvasBackground.tsx  # Animated background
 │   └── DemoSection.tsx      # Interactive demo
+├── docs/
+│   ├── IMPLEMENTATION_SUMMARY.md
+│   ├── PROJECT_DOCUMENTATION.md
+│   ├── PROJECT_REPORT.md
+│   ├── TUTOR_DOCUMENTATION.md
+│   ├── canvasAI.md
+│   ├── realtime_streaming.md
+│   └── testing_strategy.md
 ├── scripts/
 │   └── migrate-waitlist-schema.mjs  # Updates waitlist DB columns
 └── public/              # Static assets

@@ -100,7 +100,7 @@ export async function POST(request: Request) {
   const instructions = `${DEFAULT_SOCRATIC_TUTOR_INSTRUCTIONS}\n\n${languageRestriction}`
 
   /**
-   * Session config sent to OpenAI. See TUTOR_DOCUMENTATION.md for why
+   * Session config sent to OpenAI. See docs/TUTOR_DOCUMENTATION.md for why
    * output_modalities is ['audio'] only (not ['audio', 'text']).
    */
   const sessionConfig = {

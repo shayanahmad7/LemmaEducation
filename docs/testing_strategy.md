@@ -1,6 +1,6 @@
 # Testing Strategy
 
-This document outlines how to verify that all implemented features work correctly and that no regressions have been introduced. It covers the tutor instructions, language handling, UI, error handling, and canvas streaming optimizations described in `IMPLEMENTATION_SUMMARY.md` and `realtime_streaming.md`.
+This document outlines how to verify that all implemented features work correctly and that no regressions have been introduced. It covers the tutor instructions, language handling, UI, error handling, and canvas streaming optimizations described in `docs/IMPLEMENTATION_SUMMARY.md` and `docs/realtime_streaming.md`.
 
 ---
 
