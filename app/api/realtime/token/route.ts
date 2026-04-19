@@ -13,10 +13,6 @@
 import { NextResponse } from 'next/server'
 import { getLanguageRestrictionInstruction } from '@/lib/languageInstructions'
 
-const REALTIME_TRANSCRIPTION_MODEL = 'gpt-4o-mini-transcribe'
-const REALTIME_TRANSCRIPTION_PROMPT =
-  'The student is discussing grade 3 to grade 7 math. Expect arithmetic, fractions, decimals, percentages, ratios, geometry, variables, equations, and short spoken math explanations.'
-
 function getEnvOrDefault(value: string | undefined, fallback: string): string {
   const normalized = value?.trim()
   return normalized && normalized.length > 0 ? normalized : fallback
@@ -37,7 +33,7 @@ function getGradeLevelInstruction(gradeLevel: string): string {
   const normalized = gradeLevel.trim()
   if (!normalized) return ''
 
-  return `Student context: The student says they are working at ${normalized}. Match the level of explanation, vocabulary, examples, and pacing to that level. Keep the math accessible for that level, and do not jump to more advanced methods unless the student asks or it is clearly necessary.`
+  return `Student context: The student is working at ${normalized}. Match the level of explanation, vocabulary, examples, pacing, and question difficulty to ${normalized}. Keep the math accessible for that exact level, and do not jump to more advanced methods unless the student asks or it is clearly necessary.`
 }
 
 /**
@@ -77,6 +73,16 @@ export async function POST(request: Request) {
     )
   }
 
+  const realtimeTranscriptionModel = getRequiredEnv(
+    process.env.OPENAI_REALTIME_TRANSCRIPTION_MODEL
+  )
+  if (!realtimeTranscriptionModel) {
+    return NextResponse.json(
+      { error: 'OPENAI_REALTIME_TRANSCRIPTION_MODEL is not configured' },
+      { status: 500 }
+    )
+  }
+
   let language = 'en'
   let gradeLevel = ''
   try {
@@ -109,9 +115,8 @@ export async function POST(request: Request) {
     audio: {
       input: {
         transcription: {
-          model: REALTIME_TRANSCRIPTION_MODEL,
+          model: realtimeTranscriptionModel,
           language,
-          prompt: REALTIME_TRANSCRIPTION_PROMPT,
         },
       },
       output: { voice: 'marin' },

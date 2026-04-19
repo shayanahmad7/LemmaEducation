@@ -235,6 +235,7 @@ The Realtime API accepts **images** (`input_image` with `data:image/...;base64,.
 |----------|----------|---------|
 | `OPENAI_API_KEY` | Yes | Used server-side to mint ephemeral tokens. Never sent to the client. |
 | `OPENAI_REALTIME_MODEL` | Yes | Realtime model used for tutoring sessions. |
+| `OPENAI_REALTIME_TRANSCRIPTION_MODEL` | Yes | Speech-to-text model used for spoken user transcript in chat. |
 | `OPENAI_SOCRATIC_TUTOR_INSTRUCTIONS` | Yes | Base tutor prompt loaded from environment and combined with level/language context. |
 | `NEON_DATABASE_URL` | No (for tutor) | Used elsewhere in the app (e.g. waitlist). Not used by the tutor. |
 
@@ -255,9 +256,8 @@ The session config sent to `client_secrets`:
   audio: {
     input: {
       transcription: {
-        model: 'gpt-4o-mini-transcribe',
-        language,
-        prompt: 'The student is discussing grade 3 to grade 7 math...'
+        model: process.env.OPENAI_REALTIME_TRANSCRIPTION_MODEL,
+        language
       }
     },
     output: { voice: 'marin' }
@@ -269,7 +269,7 @@ The session config sent to `client_secrets`:
 - **model:** realtime model loaded from environment
 - **instructions:** env prompt + grade-level context + language restriction
 - **output_modalities:** `['audio']` only (see above)
-- **input transcription:** `gpt-4o-mini-transcribe` for spoken user transcript in chat
+- **input transcription:** model loaded from `OPENAI_REALTIME_TRANSCRIPTION_MODEL`
 - **voice:** `marin` = one of the supported Realtime voices (alloy, ash, ballad, coral, echo, sage, shimmer, verse, marin, cedar)
 
 ---

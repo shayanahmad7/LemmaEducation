@@ -116,7 +116,7 @@ The tutor now also receives a lightweight math-level hint from the UI:
 - **Response:** `{ value: string }` (ephemeral token)
 - **Model:** loaded from `OPENAI_REALTIME_MODEL`
 - **Instructions:** env tutor prompt + grade-level context + language restriction
-- **Input transcription:** enables spoken user transcription with `gpt-4o-mini-transcribe`
+- **Input transcription:** enables spoken user transcription with the model from `OPENAI_REALTIME_TRANSCRIPTION_MODEL`
 - **Error handling:** Generic message returned; raw errors logged on the server
 
 ### 4.2 Log Error Route
