@@ -135,10 +135,19 @@ function EndIcon(props: SVGProps<SVGSVGElement>) {
   )
 }
 
+const GRADE_LEVEL_OPTIONS = [
+  'Grade 3',
+  'Grade 4',
+  'Grade 5',
+  'Grade 6',
+  'Grade 7',
+]
+
 export default function TutorPage() {
   const [error, setError] = useState<string | null>(null)
   const [streamCanvas, setStreamCanvas] = useState(true)
   const [language, setLanguage] = useState<string>('en')
+  const [gradeLevel, setGradeLevel] = useState<string>('Grade 6')
   const [editor, setEditor] = useState<Editor | null>(null)
   const [isTutorialOpen, setIsTutorialOpen] = useState(false)
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
@@ -261,7 +270,7 @@ export default function TutorPage() {
     if (isStartingSession || isConnected) return
     setError(null)
     setIsStartingSession(true)
-    await connect({ language })
+    await connect({ language, gradeLevel })
   }
   const openTutorial = () => {
     setTutorialStepIndex(0)
@@ -416,6 +425,9 @@ export default function TutorPage() {
                         <h1 className="text-[1.7rem] font-light leading-none tracking-[-0.03em] text-[#0F2922]">
                           AI tutor
                         </h1>
+                        <p className="mt-2 text-[11px] uppercase tracking-[0.22em] text-[#7A8C86]">
+                          {gradeLevel}
+                        </p>
                       </div>
                     </div>
 
@@ -518,6 +530,35 @@ export default function TutorPage() {
                 </div>
 
                 <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-4">
+                  {!isConnected ? (
+                    <div className="mb-3 rounded-[22px] border border-[#DCE7E2] bg-white/74 px-4 py-3.5">
+                      <label className="block text-[11px] uppercase tracking-[0.22em] text-[#5C7069]">
+                        Math level
+                      </label>
+                      <div className="mt-2">
+                        <select
+                          value={gradeLevel}
+                          onChange={(e) => setGradeLevel(e.target.value)}
+                          className="w-full appearance-none rounded-[14px] border border-[#D5E1DD] bg-[#F7FAF8] px-3.5 py-2.5 text-[13px] font-normal text-[#203A34] outline-none transition-colors focus:border-[#16423C]"
+                          style={{
+                            backgroundImage:
+                              "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%233F524C'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E\")",
+                            backgroundPosition: 'right 0.9rem center',
+                            backgroundRepeat: 'no-repeat',
+                            backgroundSize: '14px',
+                            fontFamily: 'Inter, sans-serif',
+                          }}
+                        >
+                          {GRADE_LEVEL_OPTIONS.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  ) : null}
+
                   {error && (
                     <div className="mb-3 rounded-[22px] border border-red-200 bg-red-50/95 px-4 py-3 text-sm text-red-700">
                       {error}

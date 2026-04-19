@@ -98,7 +98,7 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
    * 4. POST SDP offer directly to OpenAI (avoids server timeout)
    * 5. Set remote description with OpenAI's SDP answer
    */
-  const connect = useCallback(async (options?: { language?: string }) => {
+  const connect = useCallback(async (options?: { language?: string; gradeLevel?: string }) => {
     try {
       setChatHistory([])
       setState('thinking')
@@ -155,7 +155,10 @@ export function useRealtimeTutor({ onError, onSpeechStarted }: UseRealtimeTutorO
       const tokenRes = await fetch('/api/realtime/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ language: options?.language ?? 'en' }),
+        body: JSON.stringify({
+          language: options?.language ?? 'en',
+          gradeLevel: options?.gradeLevel ?? '',
+        }),
       })
       if (!tokenRes.ok) {
         const err = await tokenRes.json().catch(() => ({}))

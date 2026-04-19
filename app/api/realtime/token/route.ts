@@ -29,6 +29,13 @@ function getRequiredInstructionEnv(value: string | undefined): string | null {
   return normalized.replace(/\\n/g, '\n')
 }
 
+function getGradeLevelInstruction(gradeLevel: string): string {
+  const normalized = gradeLevel.trim()
+  if (!normalized) return ''
+
+  return `Student context: The student says they are working at ${normalized}. Match the level of explanation, vocabulary, examples, and pacing to that level. Keep the math accessible for that level, and do not jump to more advanced methods unless the student asks or it is clearly necessary.`
+}
+
 /**
  * POST /api/realtime/token
  *
@@ -67,17 +74,24 @@ export async function POST(request: Request) {
   }
 
   let language = 'en'
+  let gradeLevel = ''
   try {
     const body = await request.json()
     if (body?.language && typeof body.language === 'string') {
       language = body.language
+    }
+    if (body?.gradeLevel && typeof body.gradeLevel === 'string') {
+      gradeLevel = body.gradeLevel
     }
   } catch {
     // ignore parse errors; use default language
   }
 
   const languageRestriction = getLanguageRestrictionInstruction(language)
-  const instructions = `${baseInstructions}\n\n${languageRestriction}`
+  const gradeLevelInstruction = getGradeLevelInstruction(gradeLevel)
+  const instructions = [baseInstructions, gradeLevelInstruction, languageRestriction]
+    .filter(Boolean)
+    .join('\n\n')
 
   /**
    * Session config sent to OpenAI. See docs/TUTOR_DOCUMENTATION.md for why
