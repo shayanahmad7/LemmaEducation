@@ -9,6 +9,7 @@ export interface ChatMessage {
 
 interface TutorChatWindowProps {
   messages: ChatMessage[]
+  currentUserTranscript?: string
   currentTranscript: string
   isAssistantStreaming?: boolean
   paused?: boolean
@@ -17,6 +18,7 @@ interface TutorChatWindowProps {
 
 export default function TutorChatWindow({
   messages,
+  currentUserTranscript = '',
   currentTranscript,
   isAssistantStreaming = false,
   paused = false,
@@ -29,9 +31,13 @@ export default function TutorChatWindow({
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [messages, currentTranscript])
+  }, [messages, currentTranscript, currentUserTranscript])
 
-  const hasContent = messages.length > 0 || (isAssistantStreaming && currentTranscript.trim().length > 0) || paused
+  const hasContent =
+    messages.length > 0 ||
+    currentUserTranscript.trim().length > 0 ||
+    (isAssistantStreaming && currentTranscript.trim().length > 0) ||
+    paused
 
   useEffect(() => {
     if (!scrollRef.current) return
@@ -82,6 +88,14 @@ export default function TutorChatWindow({
             </div>
           </div>
         ))}
+
+        {currentUserTranscript.trim() ? (
+          <div className="flex justify-end">
+            <div className="max-w-[85%] rounded-[20px] rounded-br-md bg-[#16423C]/88 px-3.5 py-2.5 text-sm leading-relaxed text-white shadow-[0_14px_38px_-26px_rgba(15,41,34,0.22)]">
+              {currentUserTranscript}
+            </div>
+          </div>
+        ) : null}
 
         {isAssistantStreaming && currentTranscript.trim() ? (
           <div className="flex justify-start">

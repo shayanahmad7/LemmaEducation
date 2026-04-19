@@ -168,6 +168,7 @@ export default function TutorPage() {
     isPaused,
     isMuted,
     isSpeakerMuted,
+    currentUserTranscript,
     transcript,
     chatHistory,
     connect,
@@ -567,6 +568,7 @@ export default function TutorPage() {
 
                   <TutorChatWindow
                     messages={chatHistory}
+                    currentUserTranscript={isConnected ? currentUserTranscript : ''}
                     currentTranscript={isConnected ? transcript : ''}
                     isAssistantStreaming={showAssistantStreaming}
                     paused={isPaused}

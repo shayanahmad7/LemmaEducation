@@ -13,6 +13,10 @@
 import { NextResponse } from 'next/server'
 import { getLanguageRestrictionInstruction } from '@/lib/languageInstructions'
 
+const REALTIME_TRANSCRIPTION_MODEL = 'gpt-4o-mini-transcribe'
+const REALTIME_TRANSCRIPTION_PROMPT =
+  'The student is discussing grade 3 to grade 7 math. Expect arithmetic, fractions, decimals, percentages, ratios, geometry, variables, equations, and short spoken math explanations.'
+
 function getEnvOrDefault(value: string | undefined, fallback: string): string {
   const normalized = value?.trim()
   return normalized && normalized.length > 0 ? normalized : fallback
@@ -102,7 +106,16 @@ export async function POST(request: Request) {
     model: realtimeModel,
     instructions,
     output_modalities: ['audio'],
-    audio: { output: { voice: 'marin' } },
+    audio: {
+      input: {
+        transcription: {
+          model: REALTIME_TRANSCRIPTION_MODEL,
+          language,
+          prompt: REALTIME_TRANSCRIPTION_PROMPT,
+        },
+      },
+      output: { voice: 'marin' },
+    },
   }
 
   try {
